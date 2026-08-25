@@ -109,7 +109,7 @@ function gerarMenuDinamico() {
     return { idObj: Math.random().toString(36).substr(2, 9), idAlimento: idA, nome: nome, baseQtd: qtdBase, und: und, baseKcal: kcalBase, status: 'pendente' };
   };
 
-  cardapioDoDia = {
+  const tempCardapio = {
     data: pegarDataDeHoje(),
     refeicoes: [
       {
@@ -157,6 +157,34 @@ function gerarMenuDinamico() {
     ]
   };
 
+  // CALIBRAGEM AUTOMÁTICA DA META: Se o total base der menos que 3300 kcal,
+  // o app calcula a diferença e distribui proporcionalmente nos itens em gramas logo na criação!
+  let somaBase = 0;
+  let qtdItensFlexiveis = 0;
+  tempCardapio.refeicoes.forEach(ref => {
+    ref.itens.forEach(item => {
+      somaBase += item.baseKcal;
+      if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+        qtdItensFlexiveis++;
+      }
+    });
+  });
+
+  const META_DIARIA = 3300;
+  if (somaBase < META_DIARIA && qtdItensFlexiveis > 0) {
+    const deficitInicial = META_DIARIA - somaBase;
+    const extraPorFlexivel = deficitInicial / qtdItensFlexiveis;
+    tempCardapio.refeicoes.forEach(ref => {
+      ref.itens.forEach(item => {
+        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+          item.baseKcal += extraPorFlexivel;
+          item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlexivel));
+        }
+      });
+    });
+  }
+
+  cardapioDoDia = tempCardapio;
   salvarCardapio();
   renderizarCardapio();
 }
@@ -165,26 +193,23 @@ function renderizarCardapio() {
   if (!cardapioDoDia || cardapioDoDia.data !== pegarDataDeHoje()) return;
   const container = document.getElementById('conteudo-menu');
   
-  let deficitCalorico = 0;
+  let deficitCaloricoPulados = 0;
   let itensParaAbsorver = 0;
 
-  // 1. Passa por todos os itens para separar o que foi pulado e quem pode receber as calorias
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       if (item.status === 'pulado') {
-        deficitCalorico += item.baseKcal;
+        deficitCaloricoPulados += item.baseKcal;
       } else if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-        // Agora conta itens pendentes E consumidos. Isso impede que eles percam o bônus!
         itensParaAbsorver++;
       }
     });
   });
 
-  const extraKcalPorItem = itensParaAbsorver > 0 ? (deficitCalorico / itensParaAbsorver) : 0;
+  const extraKcalPorItem = itensParaAbsorver > 0 ? (deficitCaloricoPulados / itensParaAbsorver) : 0;
   let totalKcalDia = 0;
   let html = '';
 
-  // 2. Monta o visual com as novas matemáticas seguras
   cardapioDoDia.refeicoes.forEach((ref, index) => {
     let kcalRefeicao = 0;
     let itensHtml = '';
@@ -230,7 +255,7 @@ function renderizarCardapio() {
     <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #334155;">
       <h4 style="color: #38bdf8; margin-bottom: 6px;">🎯 Meta do Dia: 3300 kcal</h4>
       <p style="font-size: 14px; color: #cbd5e1;">Projeção Atual: <strong>~${Math.round(totalKcalDia)} kcal</strong></p>
-      ${deficitCalorico > 0 ? `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado e manterão esse peso extra!</p>` : ''}
+      ${deficitCaloricoPulados > 0 ? `<p style="print:none; font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado!</p>` : ''}
     </div>
   `;
 

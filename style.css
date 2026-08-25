@@ -1,0 +1,161 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #0f172a;
+  color: #f8fafc;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  max-width: 600px;
+  width: 100%;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+header h1 {
+  font-size: 24px;
+  color: #38bdf8;
+}
+
+header p {
+  color: #94a3b8;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.card {
+  background-color: #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.card h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: #f1f5f9;
+}
+
+.subtext {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+/* Metas Grid */
+.grid-metas {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.meta-item {
+  background-color: #0f172a;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.meta-item .label {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.meta-item .valor {
+  font-size: 20px;
+  font-weight: bold;
+  color: #38bdf8;
+}
+
+/* Estoque Checklist */
+.lista-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.item-checkbox {
+  display: flex;
+  align-items: center;
+  background-color: #0f172a;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.item-checkbox:hover {
+  background-color: #334155;
+}
+
+.item-checkbox input {
+  margin-right: 12px;
+  width: 18px;
+  height: 18px;
+  accent-color: #38bdf8;
+}
+
+/* Botão */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background-color: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #0369a1;
+}
+
+/* Menu Resultado */
+.placeholder {
+  color: #64748b;
+  font-style: italic;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.refeicao-card {
+  background-color: #0f172a;
+  border-left: 4px solid #38bdf8;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.refeicao-card h3 {
+  font-size: 15px;
+  color: #e2e8f0;
+  margin-bottom: 6px;
+}
+
+.refeicao-card ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.refeicao-card li {
+  font-size: 14px;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+}

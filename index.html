@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu Cardápio Diário - 3300 kcal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>🥗 Planejador de Nutrição</h1>
+      <p>Gerenciador dinâmico de cardápio com base no seu estoque</p>
+    </header>
+
+    <!-- PAINEL DE METAS DIÁRIAS -->
+    <section class="card metas">
+      <h2>🎯 Meta Diária</h2>
+      <div class="grid-metas">
+        <div class="meta-item">
+          <span class="label">Calorias</span>
+          <span class="valor">3.300 <small>kcal</small></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Proteínas</span>
+          <span class="valor">195 <small>g</small></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Carboidratos</span>
+          <span class="valor">450 <small>g</small></span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Gorduras</span>
+          <span class="valor">80 <small>g</small></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- GERENCIADOR DE ESTOQUE DE ALIMENTOS -->
+    <section class="card estoque">
+      <h2>📦 Alimentos no Estoque</h2>
+      <p class="subtext">Marque o que você tem disponível em casa hoje:</p>
+      
+      <div id="lista-estoque" class="lista-checkboxes">
+        <!-- Os alimentos vão aparecer aqui dinamicamente -->
+      </div>
+
+      <button id="btn-gerar" class="btn-primary">🔄 Gerar Menu de Hoje</button>
+    </section>
+
+    <!-- EXIBIÇÃO DO MENU GERADO -->
+    <section class="card menu-resultado" id="secao-menu">
+      <h2>🍽️ Seu Cardápio do Dia</h2>
+      <div id="conteudo-menu">
+        <p class="placeholder">Marque os alimentos do seu estoque acima e clique em "Gerar Menu de Hoje".</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

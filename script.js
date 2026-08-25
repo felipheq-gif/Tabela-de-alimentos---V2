@@ -1,96 +1,220 @@
-// Dados dos Alimentos
-const alimentos = [
-  { id: 'frango', nome: 'Peito de Frango Grelhado', proteina: 31, carbo: 0, gordura: 3.6, kcal: 165, emEstoque: true },
-  { id: 'ovos', nome: 'Ovo Copolas/Inteiro (unidade)', proteina: 6.3, carbo: 0.4, gordura: 4.8, kcal: 72, emEstoque: true },
-  { id: 'arroz', nome: 'Arroz Branco Cozido', proteina: 2.7, carbo: 28, gordura: 0.3, kcal: 130, emEstoque: true },
-  { id: 'banana', nome: 'Banana Prata', proteina: 0.9, carbo: 18, gordura: 0.1, kcal: 70, emEstoque: true },
-  { id: 'aveia', nome: 'Aveia em Flocos', proteina: 14, carbo: 60, gordura: 7, kcal: 360, emEstoque: true },
-  { id: 'pasta_amendoim', nome: 'Pasta de Amendoim', proteina: 25, carbo: 20, gordura: 50, kcal: 600, emEstoque: true },
-  { id: 'leite', nome: 'Leite Integral (ml)', proteina: 3, carbo: 4.5, gordura: 3, kcal: 60, emEstoque: true }
-];
-
-// Carrega os checkboxes na tela
-function carregarEstoque() {
-  const container = document.getElementById('lista-estoque');
-  container.innerHTML = '';
-
-  alimentos.forEach(item => {
-    const label = document.createElement('label');
-    label.className = 'item-checkbox';
-    label.innerHTML = `
-      <input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="atualizarStatus('${item.id}')">
-      ${item.nome}
-    `;
-    container.appendChild(label);
-  });
+/* =========================================
+   BASE E RESET
+========================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-function atualizarStatus(id) {
-  const item = alimentos.find(a => a.id === id);
-  if (item) {
-    item.emEstoque = !item.emEstoque;
-  }
+body {
+  background-color: #0f172a;
+  color: #f8fafc;
+  padding: 20px;
+  line-height: 1.6;
 }
 
-// Gera o menu distribuído em 5 refeições
-function gerarMenu() {
-  const disponiveis = alimentos.filter(a => a.emEstoque);
-  const containerMenu = document.getElementById('conteudo-menu');
-
-  if (disponiveis.length === 0) {
-    containerMenu.innerHTML = '<p class="placeholder" style="color: #ef4444;">Marque pelo menos um alimento no seu estoque!</p>';
-    return;
-  }
-
-  // Distribuição simples das 3.300 kcal em 5 refeições
-  const menuHTML = `
-    <div class="refeicao-card">
-      <h3>☕ Refeição 1: Café da Manhã (~700 kcal)</h3>
-      <ul>
-        <li>• 3 Ovos Inteiros mexidos/cozidos</li>
-        <li>• 80g de Aveia em Flocos</li>
-        <li>• 2 Bananas Prata</li>
-      </ul>
-    </div>
-
-    <div class="refeicao-card">
-      <h3>🍗 Refeição 2: Almoço (~800 kcal)</h3>
-      <ul>
-        <li>• 200g de Peito de Frango Grelhado</li>
-        <li>• 300g de Arroz Branco Cozido</li>
-        <li>• Salada/Vegetais à vontade</li>
-      </ul>
-    </div>
-
-    <div class="refeicao-card">
-      <h3>🍌 Refeição 3: Lanche da Tarde (~500 kcal)</h3>
-      <ul>
-        <li>• 250ml de Leite Integral</li>
-        <li>• 1 Banana Prata</li>
-        <li>• 30g de Pasta de Amendoim</li>
-      </ul>
-    </div>
-
-    <div class="refeicao-card">
-      <h3>🥩 Refeição 4: Jantar (~800 kcal)</h3>
-      <ul>
-        <li>• 200g de Peito de Frango Grelhado</li>
-        <li>• 300g de Arroz Branco Cozido</li>
-      </ul>
-    </div>
-
-    <div class="refeicao-card">
-      <h3>🌙 Refeição 5: Ceia / Lanche Noturno (~500 kcal)</h3>
-      <ul>
-        <li>• 2 Ovos Inteiros</li>
-        <li>• 40g de Aveia em Flocos</li>
-        <li>• 20g de Pasta de Amendoim</li>
-      </ul>
-    </div>
-  `;
-
-  containerMenu.innerHTML = menuHTML;
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-document.getElementById('btn-gerar').addEventListener('click', gerarMenu);
-window.onload = carregarEstoque;
+h1, h2, h3, h4 {
+  color: #38bdf8;
+  margin-bottom: 15px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 15px;
+}
+
+/* =========================================
+   FORMULÁRIOS E BOTÕES GERAIS
+========================================= */
+.section-card {
+  background: #0f172a;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+input, select, button {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.btn-primario {
+  background: #0284c7;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.btn-primario:hover {
+  background: #0369a1;
+}
+
+#btn-gerar {
+  background: #059669;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+#btn-gerar:hover {
+  background: #047857;
+}
+
+/* =========================================
+   LISTA DE ESTOQUE
+========================================= */
+.grid-estoque {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.item-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: #1e293b;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.item-checkbox:hover {
+  background: #334155;
+}
+
+.alerta-bloqueio {
+  background: #450a0a;
+  border: 1px solid #991b1b;
+  color: #fca5a5;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+/* =========================================
+   CARDS DE REFEIÇÃO E ALIMENTOS (NOVO)
+========================================= */
+.refeicao-card {
+  background: #1e293b;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #334155;
+}
+
+.refeicao-card h3 {
+  font-size: 16px;
+  color: #f8fafc;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed #475569;
+  padding-bottom: 8px;
+}
+
+.refeicao-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+/* Estrutura de cada linha de alimento */
+.refeicao-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  margin-bottom: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+/* Estado: Pulou o alimento (riscado) */
+.refeicao-item.pulado {
+  opacity: 0.5;
+  text-decoration: line-through;
+  border-color: #7f1d1d;
+}
+
+/* Estado: Consumiu o alimento (verde) */
+.refeicao-item.consumido {
+  border-color: #059669;
+  background: #064e3b;
+}
+
+/* Botões de Ação de cada alimento */
+.acoes-item {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-acao {
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  width: auto;
+}
+
+.btn-acao:hover { 
+  background: #334155; 
+}
+
+/* Cor quando o botão de "Consumir" (✅) está ativo */
+.btn-acao.ativo-sim { 
+  background: #10b981; 
+  border-color: #047857; 
+}
+
+/* Cor quando o botão de "Pular" (❌) está ativo */
+.btn-acao.ativo-nao { 
+  background: #ef4444; 
+  border-color: #b91c1c; 
+}
+
+/* Limpeza de código antigo (esconde o botão velho se sobrar no HTML) */
+.btn-check-meal {
+  display: none !important;
+}

@@ -1,4 +1,4 @@
-// Banco de Alimentos Customizado (Com a Bebida Láctea já incluída!)
+// Banco de Alimentos Customizado (Com a Bebida Láctea)
 const alimentosIniciais = [
   { id: 'pao', nome: 'Pão Francês', cat: 'carbo', emEstoque: true, historico: [] },
   { id: 'tapioca', nome: 'Tapioca', cat: 'carbo', emEstoque: true, historico: [] },
@@ -23,7 +23,6 @@ const alimentosIniciais = [
   { id: 'chia', nome: 'Semente de Chia', cat: 'gordura', emEstoque: true, historico: [] }
 ];
 
-// O navegador busca no cache, se não tiver nada (por ser um link novo), ele usa os alimentosIniciais acima.
 let alimentos = JSON.parse(localStorage.getItem('meuEstoqueOficial')) || alimentosIniciais;
 let cardapioDoDia = JSON.parse(localStorage.getItem('cardapioDoDia')) || null;
 
@@ -99,7 +98,6 @@ function gerarMenuDinamico() {
   const temCrea = pegar('creatina');
   
   const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
-  // Aqui eu coloquei a Bebida Láctea como opção preferencial para a ceia
   const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
 
   if (!carboPrinc || !protPrinc) {
@@ -168,19 +166,25 @@ function renderizarCardapio() {
   const container = document.getElementById('conteudo-menu');
   
   let deficitCalorico = 0;
-  let itensPendentesParaDistribuir = 0;
+  let itensParaAbsorver = 0;
 
+  // 1. Passa por todos os itens para separar o que foi pulado e quem pode receber as calorias
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
-      if (item.status === 'pulado') deficitCalorico += item.baseKcal;
-      if (item.status === 'pendente' && item.und === 'g' && item.baseKcal > 0) itensPendentesParaDistribuir++;
+      if (item.status === 'pulado') {
+        deficitCalorico += item.baseKcal;
+      } else if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+        // Agora conta itens pendentes E consumidos. Isso impede que eles percam o bônus!
+        itensParaAbsorver++;
+      }
     });
   });
 
-  const extraKcalPorItem = itensPendentesParaDistribuir > 0 ? (deficitCalorico / itensPendentesParaDistribuir) : 0;
+  const extraKcalPorItem = itensParaAbsorver > 0 ? (deficitCalorico / itensParaAbsorver) : 0;
   let totalKcalDia = 0;
   let html = '';
 
+  // 2. Monta o visual com as novas matemáticas seguras
   cardapioDoDia.refeicoes.forEach((ref, index) => {
     let kcalRefeicao = 0;
     let itensHtml = '';
@@ -189,7 +193,7 @@ function renderizarCardapio() {
       let novaKcal = item.baseKcal;
       let novaQtd = item.baseQtd;
 
-      if (item.status === 'pendente' && item.und === 'g' && item.baseKcal > 0) {
+      if (item.status !== 'pulado' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
         novaKcal = item.baseKcal + extraKcalPorItem;
         novaQtd = item.baseQtd * (novaKcal / item.baseKcal);
       }
@@ -205,7 +209,7 @@ function renderizarCardapio() {
 
       itensHtml += `
         <li class="refeicao-item ${isCons ? 'consumido' : ''} ${isPula ? 'pulado' : ''}">
-          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${item.status === 'pendente' && extraKcalPorItem > 0 ? '📈' : ''}</span>
+          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${extraKcalPorItem > 0 && item.status !== 'pulado' ? '📈' : ''}</span>
           <div class="acoes-item">
             <button class="btn-acao ${isCons ? 'ativo-sim' : ''}" onclick="mudarStatusItem('${item.idObj}', 'consumido')" title="Comi">✅</button>
             <button class="btn-acao ${isPula ? 'ativo-nao' : ''}" onclick="mudarStatusItem('${item.idObj}', 'pulado')" title="Vou Pular">❌</button>
@@ -226,7 +230,7 @@ function renderizarCardapio() {
     <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #334155;">
       <h4 style="color: #38bdf8; margin-bottom: 6px;">🎯 Meta do Dia: 3300 kcal</h4>
       <p style="font-size: 14px; color: #cbd5e1;">Projeção Atual: <strong>~${Math.round(totalKcalDia)} kcal</strong></p>
-      ${deficitCalorico > 0 ? `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Gramaturas pendentes com o ícone 📈 foram aumentadas para compensar o que foi pulado.</p>` : ''}
+      ${deficitCalorico > 0 ? `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado e manterão esse peso extra!</p>` : ''}
     </div>
   `;
 

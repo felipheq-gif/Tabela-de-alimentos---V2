@@ -64,10 +64,13 @@ function alternarEstoque(id) {
 document.getElementById('form-alimento').addEventListener('submit', function(e) {
   e.preventDefault();
   const limiteInput = document.getElementById('limite-alimento').value;
+  const kcalInput = document.getElementById('kcal-alimento').value;
+  
   alimentos.push({
     id: 'custom_' + Date.now(),
     nome: document.getElementById('nome-alimento').value,
     cat: document.getElementById('cat-alimento').value,
+    kcalPorPorcao: kcalInput ? parseFloat(kcalInput) : 100,
     limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
     emEstoque: true,
     historico: []
@@ -93,6 +96,9 @@ function gerarMenuDinamico() {
   const temLeitePo = pegar('leite_po');
   const temChia = pegar('chia');
   const temCrea = pegar('creatina');
+  
+  const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
+  const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
 
   if (!carboPrinc || !protPrinc) {
     document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444;">Falta proteína ou carboidrato no estoque!</p>';
@@ -103,18 +109,18 @@ function gerarMenuDinamico() {
     return { idObj: Math.random().toString(36).substr(2, 9), idAlimento: idA, nome: nome, baseQtd: qtdBase, und: und, baseKcal: kcalBase, status: 'pendente' };
   };
 
-  // Seleção Inteligente para a Ceia (Evita misturar duas bebidas/líquidos)
+  // Seleção Inteligente para a Ceia
   let itensCeiaArray = [];
   const bebidaLactea = pegar('bebida_lactea');
   const leiteCeia = pegar('leite');
   const iogurteCeia = pegar('iogurte');
-  const ovosCeia = pegar('ovos');
   const batataCeia = pegar('batata_doce');
   const aveiaCeia = pegar('aveia');
   const bananaCeia = pegar('banana');
 
   if (bebidaLactea) {
-    itensCeiaArray.push(criarItem('bebida_lactea', 'Bebida Láctea Morango', 200, 'ml', 111));
+    const kcalBebida = bebidaLactea.kcalPorPorcao || 111;
+    itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
     else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
     else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));

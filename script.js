@@ -86,6 +86,55 @@ document.getElementById('form-alimento').addEventListener('submit', function(e) 
   this.reset();
 });
 
+// A MATEMÁTICA PRINCIPAL DE DÉFICIT
+function atualizarDinamicaCardapio() {
+  if (!cardapioDoDia) return;
+
+  let deficitGerado = 0;
+  let deficitAbsorvido = 0;
+  let pendentesFlexiveis = 0;
+
+  // 1. Calcula o total que foi gerado pelos "pulados" e o que já foi absorvido pelos "consumidos"
+  cardapioDoDia.refeicoes.forEach(ref => {
+    ref.itens.forEach(item => {
+      if (item.status === 'pulado') {
+        deficitGerado += item.baseKcal;
+      }
+      if (item.status === 'consumido' && item.finalKcal !== null) {
+        deficitAbsorvido += (item.finalKcal - item.baseKcal);
+      }
+      if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+        pendentesFlexiveis++;
+      }
+    });
+  });
+
+  // 2. O extra a ser distribuído é apenas a sobra que ninguém absorveu ainda
+  let deficitRestante = deficitGerado - deficitAbsorvido;
+  let extraPorPendente = pendentesFlexiveis > 0 ? (deficitRestante / pendentesFlexiveis) : 0;
+
+  // 3. Aplica os valores em tempo real
+  cardapioDoDia.refeicoes.forEach(ref => {
+    ref.itens.forEach(item => {
+      if (item.status === 'pulado') {
+        item.currentKcal = 0;
+        item.currentQtd = 0;
+      } else if (item.status === 'consumido') {
+        item.currentKcal = item.finalKcal;
+        item.currentQtd = item.finalQtd;
+      } else { // status === 'pendente'
+        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+          item.currentKcal = item.baseKcal + extraPorPendente;
+          item.currentQtd = item.baseQtd * (item.currentKcal / item.baseKcal);
+        } else {
+          item.currentKcal = item.baseKcal;
+          item.currentQtd = item.baseQtd;
+        }
+      }
+    });
+  });
+}
+
 function gerarMenuDinamico() {
   const disponiveis = alimentos.filter(a => a.emEstoque && podeConsumirHoje(a));
   const pegar = (id) => disponiveis.find(a => a.id === id);
@@ -119,6 +168,10 @@ function gerarMenuDinamico() {
       baseQtd: qtdBase, 
       und: und, 
       baseKcal: kcalBase, 
+      currentQtd: qtdBase,
+      currentKcal: kcalBase,
+      finalKcal: null,
+      finalQtd: null,
       status: 'pendente'
     };
   };
@@ -166,7 +219,7 @@ function gerarMenuDinamico() {
         itens: [
           criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
           ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
-          criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? ' 288' : 297)
+          criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
         ]
       },
       {
@@ -214,6 +267,8 @@ function gerarMenuDinamico() {
           let reducao = Math.min(item.baseQtd, excessoOvos);
           item.baseQtd -= reducao;
           item.baseKcal -= reducao * 72;
+          item.currentQtd = item.baseQtd;
+          item.currentKcal = item.baseKcal;
           excessoOvos -= reducao;
         }
       });
@@ -231,6 +286,8 @@ function gerarMenuDinamico() {
       itensFlex.forEach(item => {
         item.baseKcal += extra;
         item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extra));
+        item.currentKcal = item.baseKcal;
+        item.currentQtd = item.baseQtd;
       });
     }
   }
@@ -254,12 +311,15 @@ function gerarMenuDinamico() {
         if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
           item.baseKcal += extraPorFlex;
           item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlex));
+          item.currentKcal = item.baseKcal;
+          item.currentQtd = item.baseQtd;
         }
       });
     });
   }
 
   cardapioDoDia = tempCardapio;
+  atualizarDinamicaCardapio();
   salvarCardapio();
   renderizarCardapio();
 }
@@ -268,27 +328,15 @@ function renderizarCardapio() {
   if (!cardapioDoDia || cardapioDoDia.data !== pegarDataDeHoje()) return;
   const container = document.getElementById('conteudo-menu');
   
-  // 1. Calcula o déficit gerado pelos itens pulados (❌)
-  let deficitPulados = 0;
+  let deficitGerado = 0;
+  let deficitAbsorvido = 0;
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
-      if (item.status === 'pulado') {
-        deficitPulados += item.baseKcal;
-      }
+      if (item.status === 'pulado') deficitGerado += item.baseKcal;
+      if (item.status === 'consumido' && item.finalKcal !== null) deficitAbsorvido += (item.finalKcal - item.baseKcal);
     });
   });
-
-  // 2. Conta quantos itens AINDA ESTÃO PENDENTES e são flexíveis (em gramas/ml com kcal > 0) para absorver o déficit
-  let itensPendentesFlexiveis = 0;
-  cardapioDoDia.refeicoes.forEach(ref => {
-    ref.itens.forEach(item => {
-      if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-        itensPendentesFlexiveis++;
-      }
-    });
-  });
-
-  const extraPorPendente = itensPendentesFlexiveis > 0 ? (deficitPulados / itensPendentesFlexiveis) : 0;
+  let extraRestanteVisual = deficitGerado - deficitAbsorvido;
 
   let totalKcalDia = 0;
   let kcalConsumidas = 0;
@@ -299,57 +347,25 @@ function renderizarCardapio() {
     let itensHtml = '';
 
     ref.itens.forEach(item => {
-      let kcalAtual = 0;
-      let qtdAtual = 0;
-
-      if (item.status === 'pulado') {
-        kcalAtual = 0;
-        qtdAtual = 0;
-      } else if (item.status === 'consumido') {
-        // Se já foi consumido, trava no valor congelado (ou congela agora se for o momento do clique)
-        if (item.finalKcal === null || item.finalKcal === undefined) {
-          let calcKcal = item.baseKcal;
-          let calcQtd = item.baseQtd;
-          if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-            calcKcal = item.baseKcal + extraPorPendente;
-            calcQtd = item.baseQtd * (calcKcal / item.baseKcal);
-          }
-          item.finalKcal = calcKcal;
-          item.finalQtd = calcQtd;
-        }
-        kcalAtual = item.finalKcal;
-        qtdAtual = item.finalQtd;
-      } else {
-        // Se está pendente, o valor é dinâmico: base + a fatia proporcional do que foi pulado
-        item.finalKcal = null;
-        item.finalQtd = null;
-        let calcKcal = item.baseKcal;
-        let calcQtd = item.baseQtd;
-        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-          calcKcal = item.baseKcal + extraPorPendente;
-          calcQtd = item.baseQtd * (calcKcal / item.baseKcal);
-        }
-        kcalAtual = calcKcal;
-        qtdAtual = calcQtd;
-      }
-
-      // O total projetado do dia soma os consumidos + pendentes (o que foi pulado é 0)
       if (item.status !== 'pulado') {
-        kcalRefeicao += kcalAtual;
-        totalKcalDia += kcalAtual;
+        kcalRefeicao += item.currentKcal;
+        totalKcalDia += item.currentKcal;
       }
 
       if (item.status === 'consumido') {
-        kcalConsumidas += kcalAtual;
+        kcalConsumidas += item.currentKcal;
       }
 
-      const qtdFormatada = (item.und === 'g' || item.und === 'ml') ? Math.round(qtdAtual) : Number(qtdAtual.toFixed(1));
+      const qtdFormatada = (item.und === 'g' || item.und === 'ml') ? Math.round(item.currentQtd) : Number(item.currentQtd.toFixed(1));
       const isCons = item.status === 'consumido';
       const isPula = item.status === 'pulado';
 
+      // Mostra a setinha apenas se o item for flexível, estiver pendente, e existir calorias sendo redirecionadas para ele
+      const mostraSeta = item.status === 'pendente' && extraRestanteVisual > 0.5 && (item.und === 'g' || item.und === 'ml');
+
       itensHtml += `
         <li class="refeicao-item ${isCons ? 'consumido' : ''} ${isPula ? 'pulado' : ''}">
-          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${item.status === 'pendente' && deficitPulados > 0 ? '📈' : ''}</span>
+          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${mostraSeta ? '📈' : ''}</span>
           <div class="acoes-item">
             <button class="btn-acao ${isCons ? 'ativo-sim' : ''}" onclick="mudarStatusItem('${item.idObj}', 'consumido')" title="Comi">✅</button>
             <button class="btn-acao ${isPula ? 'ativo-nao' : ''}" onclick="mudarStatusItem('${item.idObj}', 'pulado')" title="Vou Pular">❌</button>
@@ -369,8 +385,8 @@ function renderizarCardapio() {
   document.getElementById('projecao-texto').innerHTML = `Consumidas: <strong>~${Math.round(kcalConsumidas)} kcal</strong> | Total Projetado: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
   
   const alertaEl = document.getElementById('alertas-sistema');
-  if (deficitPulados > 0) {
-    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens pendentes com 📈 absorveram o alimento pulado e mantiveram a meta de 3300 kcal!</p>`;
+  if (extraRestanteVisual > 0.5) {
+    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens pendentes com 📈 absorveram o alimento pulado!</p>`;
   } else {
     alertaEl.innerHTML = '';
   }
@@ -379,49 +395,41 @@ function renderizarCardapio() {
 }
 
 window.mudarStatusItem = function(idObj, novoStatus) {
+  // Encontra o item específico que foi clicado
+  let targetItem = null;
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
-      if (item.idObj === idObj) {
-        if (item.status === novoStatus) {
-          // Se desmarcar, destrava o item e ele volta a ser pendente/dinâmico
-          item.status = 'pendente';
-          item.finalKcal = null;
-          item.finalQtd = null;
-        } else {
-          item.status = novoStatus;
-          if (novoStatus === 'consumido') {
-            // Trava o valor exato que estava na tela no momento do clique
-            if (item.finalKcal === null || item.finalKcal === undefined) {
-              let deficitPulados = 0;
-              cardapioDoDia.refeicoes.forEach(r => r.itens.forEach(i => { if (i.status === 'pulado') deficitPulados += i.baseKcal; }));
-              let pendentes = 0;
-              cardapioDoDia.refeicoes.forEach(r => r.itens.forEach(i => { if (i.status === 'pendente' && (i.und === 'g' || i.und === 'ml') && i.baseKcal > 0) pendentes++; }));
-              let extra = pendentes > 0 ? (deficitPulados / pendentes) : 0;
-              
-              let calcK = item.baseKcal;
-              let calcQ = item.baseQtd;
-              if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-                calcK = item.baseKcal + extra;
-                calcQ = item.baseQtd * (calcK / item.baseKcal);
-              }
-              item.finalKcal = calcK;
-              item.finalQtd = calcQ;
-            }
-            
-            const alimentoOriginal = alimentos.find(a => a.id === item.idAlimento);
-            if (alimentoOriginal && !alimentoOriginal.historico.includes(pegarDataDeHoje())) {
-              alimentoOriginal.historico.push(pegarDataDeHoje());
-              salvarEstoque();
-            }
-          } else {
-            item.finalKcal = null;
-            item.finalQtd = null;
-          }
-        }
-      }
+      if (item.idObj === idObj) targetItem = item;
     });
   });
 
+  if (!targetItem) return;
+
+  if (targetItem.status === novoStatus) {
+    // Se clicou no mesmo botão para desmarcar, volta a ser flexível (pendente)
+    targetItem.status = 'pendente';
+    targetItem.finalKcal = null;
+    targetItem.finalQtd = null;
+  } else {
+    if (novoStatus === 'consumido') {
+      // Regra de Ouro: Trava o item EXATAMENTE no valor que estava mostrando na tela
+      targetItem.finalKcal = targetItem.currentKcal;
+      targetItem.finalQtd = targetItem.currentQtd;
+      
+      const alimentoOriginal = alimentos.find(a => a.id === targetItem.idAlimento);
+      if (alimentoOriginal && !alimentoOriginal.historico.includes(pegarDataDeHoje())) {
+        alimentoOriginal.historico.push(pegarDataDeHoje());
+        salvarEstoque();
+      }
+    } else { // pulado
+      targetItem.finalKcal = null;
+      targetItem.finalQtd = null;
+    }
+    targetItem.status = novoStatus;
+  }
+
+  // Refaz os cálculos de déficit, salva e renderiza
+  atualizarDinamicaCardapio();
   salvarCardapio();
   renderizarCardapio(); 
 };
@@ -430,6 +438,7 @@ document.getElementById('btn-gerar').addEventListener('click', gerarMenuDinamico
 window.onload = function() {
   carregarEstoque();
   if (cardapioDoDia && cardapioDoDia.data === pegarDataDeHoje()) {
+    atualizarDinamicaCardapio(); // Garante a matemática em dia ao recarregar a página
     renderizarCardapio();
   }
 };

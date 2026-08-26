@@ -64,13 +64,19 @@ function alternarEstoque(id) {
 document.getElementById('form-alimento').addEventListener('submit', function(e) {
   e.preventDefault();
   const limiteInput = document.getElementById('limite-alimento').value;
-  const kcalInput = document.getElementById('kcal-alimento').value;
-  
+  const kcal100 = document.getElementById('kcal-100g').value;
+  const prot100 = document.getElementById('prot-100g').value;
+  const carbo100 = document.getElementById('carbo-100g').value;
+  const gord100 = document.getElementById('gord-100g').value;
+
   alimentos.push({
     id: 'custom_' + Date.now(),
     nome: document.getElementById('nome-alimento').value,
     cat: document.getElementById('cat-alimento').value,
-    kcalPorPorcao: kcalInput ? parseFloat(kcalInput) : 100,
+    kcal100g: kcal100 ? parseFloat(kcal100) : 0,
+    prot100g: prot100 ? parseFloat(prot100) : 0,
+    carbo100g: carbo100 ? parseFloat(carbo100) : 0,
+    gord100g: gord100 ? parseFloat(gord100) : 0,
     limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
     emEstoque: true,
     historico: []
@@ -109,7 +115,6 @@ function gerarMenuDinamico() {
     return { idObj: Math.random().toString(36).substr(2, 9), idAlimento: idA, nome: nome, baseQtd: qtdBase, und: und, baseKcal: kcalBase, status: 'pendente' };
   };
 
-  // Seleção Inteligente para a Ceia
   let itensCeiaArray = [];
   const bebidaLactea = pegar('bebida_lactea');
   const leiteCeia = pegar('leite');
@@ -119,7 +124,8 @@ function gerarMenuDinamico() {
   const bananaCeia = pegar('banana');
 
   if (bebidaLactea) {
-    const kcalBebida = bebidaLactea.kcalPorPorcao || 111;
+    let kcalBebida = 111;
+    if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
     itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
     else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));

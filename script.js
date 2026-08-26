@@ -93,9 +93,6 @@ function gerarMenuDinamico() {
   const temLeitePo = pegar('leite_po');
   const temChia = pegar('chia');
   const temCrea = pegar('creatina');
-  
-  const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
-  const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
 
   if (!carboPrinc || !protPrinc) {
     document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444;">Falta proteína ou carboidrato no estoque!</p>';
@@ -105,6 +102,34 @@ function gerarMenuDinamico() {
   const criarItem = (idA, nome, qtdBase, und, kcalBase) => {
     return { idObj: Math.random().toString(36).substr(2, 9), idAlimento: idA, nome: nome, baseQtd: qtdBase, und: und, baseKcal: kcalBase, status: 'pendente' };
   };
+
+  // Seleção Inteligente para a Ceia (Evita misturar duas bebidas/líquidos)
+  let itensCeiaArray = [];
+  const bebidaLactea = pegar('bebida_lactea');
+  const leiteCeia = pegar('leite');
+  const iogurteCeia = pegar('iogurte');
+  const ovosCeia = pegar('ovos');
+  const batataCeia = pegar('batata_doce');
+  const aveiaCeia = pegar('aveia');
+  const bananaCeia = pegar('banana');
+
+  if (bebidaLactea) {
+    itensCeiaArray.push(criarItem('bebida_lactea', 'Bebida Láctea Morango', 200, 'ml', 111));
+    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+    else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
+  } else if (leiteCeia) {
+    itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
+    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+  } else if (iogurteCeia) {
+    itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
+    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+  } else {
+    itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
+    itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
+  }
 
   const tempCardapio = {
     data: pegarDataDeHoje(),
@@ -146,10 +171,7 @@ function gerarMenuDinamico() {
       },
       {
         nome: "Ceia",
-        itens: [
-          criarItem(protCeia.id, protCeia.nome, protCeia.id === 'ovos' ? 2 : 150, protCeia.id === 'ovos' ? ' un.' : 'g', protCeia.id === 'ovos' ? 144 : 100),
-          criarItem(carboCeia.id, carboCeia.nome, carboCeia.id === 'bebida_lactea' ? 200 : (carboCeia.id === 'batata_doce' ? 150 : 40), carboCeia.id === 'bebida_lactea' ? 'ml' : 'g', carboCeia.id === 'bebida_lactea' ? 111 : 129)
-        ]
+        itens: itensCeiaArray
       }
     ]
   };
@@ -289,7 +311,6 @@ function renderizarCardapio() {
     `;
   });
 
-  // Atualiza o painel exibindo o que foi consumido em tempo real versus o total projetado
   document.getElementById('projecao-texto').innerHTML = `Consumidas: <strong>~${Math.round(kcalConsumidas)} kcal</strong> | Total Projetado: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
   
   const alertaEl = document.getElementById('alertas-sistema');

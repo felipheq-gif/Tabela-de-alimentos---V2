@@ -10,7 +10,22 @@
   <div class="container">
     <h1>Cardápio Dinâmico</h1>
 
-    <!-- Cadastro de Novos Alimentos -->
+    <!-- 1. Meta Diária -->
+    <div class="section-card" style="background: #0f172a; border: 1px solid #334155;">
+      <h4 style="color: #38bdf8; margin-bottom: 6px;">🎯 Meta do Dia: 3300 kcal</h4>
+      <p style="font-size: 14px; color: #cbd5e1;" id="projecao-texto">Projeção Atual: <strong>Aguardando geração...</strong></p>
+      <div id="alertas-sistema" style="margin-top: 8px;"></div>
+    </div>
+
+    <!-- 2. Botão de Gerar Menu -->
+    <button id="btn-gerar" class="btn-primario">🔄 Gerar Menu de Hoje</button>
+
+    <!-- 3. Os alimentos (Cardápio do Dia) -->
+    <div id="conteudo-menu">
+      <p style="text-align: center; color: #94a3b8; font-size: 15px; padding: 20px 0;">Clique no botão acima para calcular o cardápio do dia.</p>
+    </div>
+
+    <!-- 4. Cadastrar Novo Alimento -->
     <div class="section-card">
       <h3>➕ Cadastrar Novo Alimento</h3>
       <form id="form-alimento">
@@ -28,19 +43,10 @@
       </form>
     </div>
 
-    <!-- Lista do Estoque -->
+    <!-- 5. Alimentos no Estoque -->
     <div class="section-card">
       <h3>📦 Meu Estoque (O que tem hoje?)</h3>
       <div id="lista-estoque" class="grid-estoque"></div>
-    </div>
-
-    <!-- Botão de Gerar Menu -->
-    <button id="btn-gerar" class="btn-primario">🔄 Gerar Menu de Hoje</button>
-
-    <!-- Área onde o Cardápio e os Alertas aparecem -->
-    <div id="alertas-sistema"></div>
-    <div id="conteudo-menu">
-      <p style="text-align: center; color: #94a3b8; font-size: 15px;">Clique no botão acima para calcular o cardápio do dia.</p>
     </div>
   </div>
 

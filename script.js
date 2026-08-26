@@ -136,7 +136,8 @@ function gerarMenuDinamico() {
           ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
           ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
           ...(temChia ? [criarItem(temChia.id, temChia.nome, 15, 'g', 70)] : []),
-          ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 5, 'g', 0)] : [])
+          // Creatina fixa estritamente em 3g
+          ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
         ]
       },
       {
@@ -157,28 +158,64 @@ function gerarMenuDinamico() {
     ]
   };
 
-  // CALIBRAGEM AUTOMÁTICA DA META: Se o total base der menos que 3300 kcal,
-  // o app calcula a diferença e distribui proporcionalmente nos itens em gramas logo na criação!
+  // RECURSO DE SEGURANÇA: Limite de no máximo 4 ovos por dia
+  let totalOvos = 0;
+  tempCardapio.refeicoes.forEach(ref => {
+    ref.itens.forEach(item => {
+      if (item.idAlimento === 'ovos') totalOvos += item.baseQtd;
+    });
+  });
+
+  if (totalOvos > 4) {
+    let excessoOvos = totalOvos - 4;
+    let kcalPerdidaOvos = excessoOvos * 72;
+    
+    tempCardapio.refeicoes.forEach(ref => {
+      ref.itens.forEach(item => {
+        if (item.idAlimento === 'ovos' && excessoOvos > 0) {
+          let reducao = Math.min(item.baseQtd, excessoOvos);
+          item.baseQtd -= reducao;
+          item.baseKcal -= reducao * 72;
+          excessoOvos -= reducao;
+        }
+      });
+    });
+
+    let itensFlex = [];
+    tempCardapio.refeicoes.forEach(ref => {
+      ref.itens.forEach(item => {
+        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) itensFlex.push(item);
+      });
+    });
+
+    if (itensFlex.length > 0) {
+      let extra = kcalPerdidaOvos / itensFlex.length;
+      itensFlex.forEach(item => {
+        item.baseKcal += extra;
+        item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extra));
+      });
+    }
+  }
+
+  // CALIBRAGEM AUTOMÁTICA PARA CRAVAR 3.300 KCAL NO MÍNIMO
   let somaBase = 0;
-  let qtdItensFlexiveis = 0;
+  let qtdFlex = 0;
   tempCardapio.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       somaBase += item.baseKcal;
-      if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-        qtdItensFlexiveis++;
-      }
+      if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) qtdFlex++;
     });
   });
 
   const META_DIARIA = 3300;
-  if (somaBase < META_DIARIA && qtdItensFlexiveis > 0) {
-    const deficitInicial = META_DIARIA - somaBase;
-    const extraPorFlexivel = deficitInicial / qtdItensFlexiveis;
+  if (somaBase < META_DIARIA && qtdFlex > 0) {
+    let deficit = META_DIARIA - somaBase;
+    let extraPorFlex = deficit / qtdFlex;
     tempCardapio.refeicoes.forEach(ref => {
       ref.itens.forEach(item => {
         if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-          item.baseKcal += extraPorFlexivel;
-          item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlexivel));
+          item.baseKcal += extraPorFlex;
+          item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlex));
         }
       });
     });
@@ -251,15 +288,16 @@ function renderizarCardapio() {
     `;
   });
 
-  const headerHtml = `
-    <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #334155;">
-      <h4 style="color: #38bdf8; margin-bottom: 6px;">🎯 Meta do Dia: 3300 kcal</h4>
-      <p style="font-size: 14px; color: #cbd5e1;">Projeção Atual: <strong>~${Math.round(totalKcalDia)} kcal</strong></p>
-      ${deficitCaloricoPulados > 0 ? `<p style="print:none; font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado!</p>` : ''}
-    </div>
-  `;
+  // Atualiza o painel de Meta Diária localizado no topo da página
+  document.getElementById('projecao-texto').innerHTML = `Projeção Atual: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
+  const alertaEl = document.getElementById('alertas-sistema');
+  if (deficitCaloricoPulados > 0) {
+    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado!</p>`;
+  } else {
+    alertaEl.innerHTML = '';
+  }
 
-  container.innerHTML = headerHtml + html;
+  container.innerHTML = html;
 }
 
 window.mudarStatusItem = function(idObj, novoStatus) {
@@ -288,5 +326,7 @@ window.mudarStatusItem = function(idObj, novoStatus) {
 document.getElementById('btn-gerar').addEventListener('click', gerarMenuDinamico);
 window.onload = function() {
   carregarEstoque();
-  renderizarCardapio();
+  if (cardapioDoDia && cardapioDoDia.data === pegarDataDeHoje()) {
+    renderizarCardapio();
+  }
 };

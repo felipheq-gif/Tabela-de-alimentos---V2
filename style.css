@@ -38,7 +38,7 @@ h1 {
 }
 
 /* =========================================
-   FORMULÁRIOS E BOTÕES GERAIS
+   FORMULÁRIOS E GRID DE CADASTRO
 ========================================= */
 .section-card {
   background: #0f172a;
@@ -48,11 +48,24 @@ h1 {
   margin-bottom: 20px;
 }
 
-.form-group {
+.form-grid {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.form-full {
+  width: 100%;
+}
+
+.form-full input, .form-full select {
+  width: 100%;
 }
 
 input, select, button {
@@ -62,6 +75,7 @@ input, select, button {
   background: #1e293b;
   color: #f8fafc;
   font-size: 14px;
+  width: 100%;
 }
 
 input:focus, select:focus {
@@ -181,6 +195,7 @@ input:focus, select:focus {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
+  width: auto;
 }
 
 .btn-acao:hover { background: #334155; }

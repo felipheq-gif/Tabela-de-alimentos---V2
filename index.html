@@ -25,21 +25,34 @@
       <p style="text-align: center; color: #94a3b8; font-size: 15px; padding: 20px 0;">Clique no botão acima para calcular o cardápio do dia.</p>
     </div>
 
-    <!-- 4. Cadastrar Novo Alimento (Corrigido com o campo de Kcal) -->
+    <!-- 4. Cadastrar Novo Alimento (Layout em Grade Profissional) -->
     <div class="section-card">
       <h3>➕ Cadastrar Novo Alimento</h3>
       <form id="form-alimento">
-        <div class="form-group">
-          <input type="text" id="nome-alimento" placeholder="Nome (Ex: Bebida Láctea)" required>
-          <select id="cat-alimento" required>
-            <option value="" disabled selected>Categoria...</option>
-            <option value="carbo">Carboidrato</option>
-            <option value="proteina">Proteína</option>
-            <option value="gordura">Gordura</option>
-          </select>
-          <input type="number" id="kcal-alimento" placeholder="Calorias por porção (Ex: 111)" required>
-          <input type="number" id="limite-alimento" placeholder="Limite na semana (opcional)">
-          <button type="submit" class="btn-primario">Cadastrar Alimento</button>
+        <div class="form-grid">
+          <div class="form-full">
+            <input type="text" id="nome-alimento" placeholder="Nome do Alimento (ex: Pão Integral)" required>
+          </div>
+          <div class="form-row">
+            <select id="cat-alimento" required>
+              <option value="" disabled selected>Categoria...</option>
+              <option value="carbo">Carboidrato</option>
+              <option value="proteina">Proteína</option>
+              <option value="gordura">Gordura</option>
+            </select>
+            <input type="number" id="limite-alimento" placeholder="Máx dias/semana (ex: 2)">
+          </div>
+          <div class="form-row">
+            <input type="number" step="0.1" id="kcal-100g" placeholder="Kcal / 100g">
+            <input type="number" step="0.1" id="prot-100g" placeholder="Proteína (g)">
+          </div>
+          <div class="form-row">
+            <input type="number" step="0.1" id="carbo-100g" placeholder="Carbo (g)">
+            <input type="number" step="0.1" id="gord-100g" placeholder="Gordura (g)">
+          </div>
+          <div class="form-full">
+            <button type="submit" class="btn-primario">Cadastrar Alimento</button>
+          </div>
         </div>
       </form>
     </div>

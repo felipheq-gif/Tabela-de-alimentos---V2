@@ -126,7 +126,6 @@ function atualizarDinamicaCardapio() {
         item.currentKcal = item.finalKcal;
         item.currentQtd = item.finalQtd;
       } else { 
-        // Restaurar memória se for avulso!
         if (item.idObj.startsWith('avulso_') || item.isAvulso) {
           item.currentKcal = item.avulsoKcal || 0;
           item.currentQtd = item.avulsoQtd || 0;
@@ -196,16 +195,16 @@ function gerarMenuDinamico() {
     if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
     itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
     else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
   } else if (leiteCeia) {
     itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
   } else if (iogurteCeia) {
     itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 1, ' un.', 80));
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
   } else {
     itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
     itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
@@ -233,7 +232,8 @@ function gerarMenuDinamico() {
         nome: "Café da Tarde (Vitamina)",
         itens: [
           ...(liqVit ? [criarItem(liqVit.id, liqVit.nome, 300, 'ml', liqVit.id === 'leite' ? 180 : 100)] : []),
-          criarItem(fruVit.id, fruVit.nome, 1, ' un.', 80),
+          // Atualizado para gramas de forma flexível
+          ...(fruVit ? [criarItem(fruVit.id, fruVit.nome, fruVit.id === 'banana' ? 100 : 30, 'g', fruVit.id === 'banana' ? 89 : 114)] : []),
           ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
           ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
           ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
@@ -368,7 +368,6 @@ function renderizarCardapio() {
       const isCons = item.status === 'consumido';
       const isPula = item.status === 'pulado';
 
-      // Sem setas visuais nos itens avulsos para não gerar confusão
       const mostraSetaCima = item.status === 'pendente' && extraRestanteVisual > 0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso;
       const mostraSetaBaixo = item.status === 'pendente' && extraRestanteVisual < -0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso;
       const icone = mostraSetaCima ? '📈' : (mostraSetaBaixo ? '📉' : '');
@@ -418,7 +417,7 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   } else {
     if (targetItem.status === 'pulado' && novoStatus === 'consumido') {
       targetItem.status = 'pendente';
-      atualizarDinamicaCardapio(); // Agora a memória armazenada restaura o avulso!
+      atualizarDinamicaCardapio(); 
     }
 
     if (novoStatus === 'consumido') {
@@ -454,13 +453,13 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
   
   const mapKcal = {
     pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
-    aveia: 3.8, banana: 80, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
+    aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555, // Banana atualizada para gramas
     frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
     leite_po: 5.0, chia: 4.66
   };
   
   let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
-  const isUnit = (id === 'pao' || id === 'ovos' || id === 'banana');
+  const isUnit = (id === 'pao' || id === 'ovos'); // Banana removida daqui
   const kcalReal = kcalUnidade * qtd; 
   const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
 
@@ -470,7 +469,6 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
     cardapioDoDia.refeicoes.push(refAvulsa);
   }
 
-  // O pulo do gato: avulsoQtd e avulsoKcal funcionam como a memória imutável do item!
   refAvulsa.itens.push({
     idObj: 'avulso_' + Date.now(),
     idAlimento: id,
@@ -478,8 +476,8 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
     baseQtd: 0,
     und: und,
     baseKcal: 0,
-    avulsoQtd: qtd,       // MANTÉM NA MEMÓRIA
-    avulsoKcal: kcalReal, // MANTÉM NA MEMÓRIA
+    avulsoQtd: qtd,       
+    avulsoKcal: kcalReal, 
     currentQtd: qtd,
     currentKcal: kcalReal,
     finalQtd: qtd,

@@ -25,7 +25,20 @@
       <p style="text-align: center; color: #94a3b8; font-size: 15px; padding: 20px 0;">Clique no botão acima para calcular o cardápio do dia.</p>
     </div>
 
-    <!-- 4. Cadastrar Novo Alimento (Layout em Grade Profissional) -->
+    <!-- 3.5 Consumo Avulso (Alimento Extra) -->
+    <div class="section-card" style="border-color: #0ea5e9;">
+      <h3 style="color: #0ea5e9;">🍽️ Adicionar Consumo Extra</h3>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">Comeu algo a mais? Adicione aqui para o sistema descontar dos próximos alimentos e manter a meta.</p>
+      <div class="form-row">
+        <select id="select-avulso">
+          <option value="" disabled selected>Escolha o alimento...</option>
+        </select>
+        <input type="number" id="qtd-avulso" placeholder="Qtd (g, ml ou un)">
+      </div>
+      <button id="btn-add-avulso" class="btn-primario" style="margin-top: 10px; background: #0ea5e9;">Adicionar à Conta</button>
+    </div>
+
+    <!-- 4. Cadastrar Novo Alimento -->
     <div class="section-card">
       <h3>➕ Cadastrar Novo Alimento</h3>
       <form id="form-alimento">

@@ -25,18 +25,19 @@
       <p style="text-align: center; color: #94a3b8; font-size: 15px; padding: 20px 0;">Clique no botão acima para calcular o cardápio do dia.</p>
     </div>
 
-    <!-- 4. Cadastrar Novo Alimento -->
+    <!-- 4. Cadastrar Novo Alimento (Corrigido com o campo de Kcal) -->
     <div class="section-card">
       <h3>➕ Cadastrar Novo Alimento</h3>
       <form id="form-alimento">
         <div class="form-group">
-          <input type="text" id="nome-alimento" placeholder="Nome (Ex: Tapioca)" required>
+          <input type="text" id="nome-alimento" placeholder="Nome (Ex: Bebida Láctea)" required>
           <select id="cat-alimento" required>
             <option value="" disabled selected>Categoria...</option>
             <option value="carbo">Carboidrato</option>
             <option value="proteina">Proteína</option>
             <option value="gordura">Gordura</option>
           </select>
+          <input type="number" id="kcal-alimento" placeholder="Calorias por porção (Ex: 111)" required>
           <input type="number" id="limite-alimento" placeholder="Limite na semana (opcional)">
           <button type="submit" class="btn-primario">Cadastrar Alimento</button>
         </div>

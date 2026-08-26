@@ -406,13 +406,20 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   if (!targetItem) return;
 
   if (targetItem.status === novoStatus) {
-    // Se clicou no mesmo botão para desmarcar, volta a ser flexível (pendente)
+    // Se clicou no mesmo botão (desmarcar), volta a ser flexível (pendente)
     targetItem.status = 'pendente';
     targetItem.finalKcal = null;
     targetItem.finalQtd = null;
   } else {
+    // A MÁGICA AQUI: Se estava "pulado" (0g) e foi direto para "consumido", 
+    // ele recupera o peso normal (pendente) antes de travar o número.
+    if (targetItem.status === 'pulado' && novoStatus === 'consumido') {
+      targetItem.status = 'pendente';
+      atualizarDinamicaCardapio();
+    }
+
     if (novoStatus === 'consumido') {
-      // Regra de Ouro: Trava o item EXATAMENTE no valor que estava mostrando na tela
+      // Trava o valor exato que o sistema calculou
       targetItem.finalKcal = targetItem.currentKcal;
       targetItem.finalQtd = targetItem.currentQtd;
       
@@ -421,14 +428,15 @@ window.mudarStatusItem = function(idObj, novoStatus) {
         alimentoOriginal.historico.push(pegarDataDeHoje());
         salvarEstoque();
       }
-    } else { // pulado
+    } else { // Se foi marcado como "pulado"
       targetItem.finalKcal = null;
       targetItem.finalQtd = null;
     }
+    
     targetItem.status = novoStatus;
   }
 
-  // Refaz os cálculos de déficit, salva e renderiza
+  // Refaz os cálculos de déficit, salva e renderiza a tela
   atualizarDinamicaCardapio();
   salvarCardapio();
   renderizarCardapio(); 

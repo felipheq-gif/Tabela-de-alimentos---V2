@@ -52,14 +52,12 @@ function carregarEstoque() {
   if(selectAvulso) selectAvulso.innerHTML = '<option value="" disabled selected>Escolha o alimento...</option>';
 
   alimentos.forEach(item => {
-    // Alimenta lista de checkboxes
     const label = document.createElement('label');
     label.className = 'item-checkbox';
     const limit = item.limiteSemanal ? `<small style="color: #fca5a5;"> (Máx ${item.limiteSemanal}x/sem)</small>` : '';
     label.innerHTML = `<input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="alternarEstoque('${item.id}')"> <span>${item.nome} ${limit}</span>`;
     container.appendChild(label);
 
-    // Alimenta select de Avulsos
     if(selectAvulso) selectAvulso.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
   });
 }
@@ -94,7 +92,7 @@ document.getElementById('form-alimento').addEventListener('submit', function(e) 
   this.reset();
 });
 
-// A MATEMÁTICA PRINCIPAL DE BALANÇO ENERGÉTICO
+// A MATEMÁTICA PRINCIPAL COM MEMÓRIA PARA AVULSOS
 function atualizarDinamicaCardapio() {
   if (!cardapioDoDia) return;
 
@@ -102,7 +100,6 @@ function atualizarDinamicaCardapio() {
   let deficitAbsorvido = 0;
   let pendentesFlexiveis = 0;
 
-  // 1. O que foi pulado gera saldo positivo. O que foi consumido a mais gera saldo negativo
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       if (item.status === 'pulado') {
@@ -111,18 +108,15 @@ function atualizarDinamicaCardapio() {
       if (item.status === 'consumido' && item.finalKcal !== null) {
         deficitAbsorvido += (item.finalKcal - item.baseKcal);
       }
-      // Chia não entra no recalculo (é fixa).
-      if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') {
+      if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso) {
         pendentesFlexiveis++;
       }
     });
   });
 
-  // 2. A sobra (pode ser negativa se comeu Avulsos!)
   let deficitRestante = deficitGerado - deficitAbsorvido;
   let extraPorPendente = pendentesFlexiveis > 0 ? (deficitRestante / pendentesFlexiveis) : 0;
 
-  // 3. Aplica nas porções
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       if (item.status === 'pulado') {
@@ -132,8 +126,11 @@ function atualizarDinamicaCardapio() {
         item.currentKcal = item.finalKcal;
         item.currentQtd = item.finalQtd;
       } else { 
-        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') {
-          // Math.max evita que porções fiquem negativas se você comer muito extra
+        // Restaurar memória se for avulso!
+        if (item.idObj.startsWith('avulso_') || item.isAvulso) {
+          item.currentKcal = item.avulsoKcal || 0;
+          item.currentQtd = item.avulsoQtd || 0;
+        } else if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') {
           item.currentKcal = Math.max(0, item.baseKcal + extraPorPendente);
           item.currentQtd = item.baseKcal > 0 ? item.baseQtd * (item.currentKcal / item.baseKcal) : 0;
         } else {
@@ -240,7 +237,6 @@ function gerarMenuDinamico() {
           ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
           ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
           ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
-          // CHIA TRAVADA NO 20g
           ...(temChia ? [criarItem(temChia.id, temChia.nome, 20, 'g', 93)] : []),
           ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
         ]
@@ -260,7 +256,6 @@ function gerarMenuDinamico() {
     ]
   };
 
-  // RECURSO DE SEGURANÇA: Limite de no máximo 4 ovos por dia
   let totalOvos = 0;
   tempCardapio.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
@@ -301,7 +296,6 @@ function gerarMenuDinamico() {
     }
   }
 
-  // CALIBRAGEM INICIAL PARA CRAVAR 3.300 KCAL
   let somaBase = 0;
   let qtdFlex = 0;
   tempCardapio.refeicoes.forEach(ref => {
@@ -325,7 +319,6 @@ function gerarMenuDinamico() {
     });
   }
 
-  // Congela os números originais
   tempCardapio.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       item.finalKcal = item.baseKcal;
@@ -375,9 +368,9 @@ function renderizarCardapio() {
       const isCons = item.status === 'consumido';
       const isPula = item.status === 'pulado';
 
-      // Setas Visuais baseadas no balanço de calorias
-      const mostraSetaCima = item.status === 'pendente' && extraRestanteVisual > 0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia';
-      const mostraSetaBaixo = item.status === 'pendente' && extraRestanteVisual < -0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia';
+      // Sem setas visuais nos itens avulsos para não gerar confusão
+      const mostraSetaCima = item.status === 'pendente' && extraRestanteVisual > 0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso;
+      const mostraSetaBaixo = item.status === 'pendente' && extraRestanteVisual < -0.5 && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso;
       const icone = mostraSetaCima ? '📈' : (mostraSetaBaixo ? '📉' : '');
 
       itensHtml += `
@@ -419,19 +412,16 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   if (!targetItem) return;
 
   if (targetItem.status === novoStatus) {
-    // Desmarcou: volta a ser pendente/flexível
     targetItem.status = 'pendente';
     targetItem.finalKcal = null;
     targetItem.finalQtd = null;
   } else {
-    // Se estava zerado (pulado) e vai direto pra check (consumido)
     if (targetItem.status === 'pulado' && novoStatus === 'consumido') {
       targetItem.status = 'pendente';
-      atualizarDinamicaCardapio();
+      atualizarDinamicaCardapio(); // Agora a memória armazenada restaura o avulso!
     }
 
     if (novoStatus === 'consumido') {
-      // Trava na hora
       targetItem.finalKcal = targetItem.currentKcal;
       targetItem.finalQtd = targetItem.currentQtd;
       
@@ -452,7 +442,7 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   renderizarCardapio(); 
 };
 
-// --- NOVA FUNÇÃO: ADICIONAR CONSUMO AVULSO ---
+// Adição de Consumo Avulso com o Banco de Memória embutido
 document.getElementById('btn-add-avulso').addEventListener('click', function() {
   if (!cardapioDoDia) return alert("Gere o menu do dia primeiro!");
 
@@ -462,7 +452,6 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
 
   const alimento = alimentos.find(a => a.id === id);
   
-  // Tabela interna de KCAL baseadas no banco principal
   const mapKcal = {
     pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
     aveia: 3.8, banana: 80, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
@@ -471,7 +460,6 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
   };
   
   let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
-  
   const isUnit = (id === 'pao' || id === 'ovos' || id === 'banana');
   const kcalReal = kcalUnidade * qtd; 
   const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
@@ -482,7 +470,7 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
     cardapioDoDia.refeicoes.push(refAvulsa);
   }
 
-  // Insere o item direto como CONSUMIDO e base=0, gerando saldo negativo de calorias
+  // O pulo do gato: avulsoQtd e avulsoKcal funcionam como a memória imutável do item!
   refAvulsa.itens.push({
     idObj: 'avulso_' + Date.now(),
     idAlimento: id,
@@ -490,12 +478,14 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
     baseQtd: 0,
     und: und,
     baseKcal: 0,
+    avulsoQtd: qtd,       // MANTÉM NA MEMÓRIA
+    avulsoKcal: kcalReal, // MANTÉM NA MEMÓRIA
     currentQtd: qtd,
     currentKcal: kcalReal,
     finalQtd: qtd,
     finalKcal: kcalReal,
     status: 'consumido',
-    _travado: true
+    isAvulso: true
   });
 
   document.getElementById('qtd-avulso').value = '';

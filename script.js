@@ -111,8 +111,19 @@ function gerarMenuDinamico() {
     return;
   }
 
+  // Inicializa com as propriedades de travamento (finalKcal e finalQtd)
   const criarItem = (idA, nome, qtdBase, und, kcalBase) => {
-    return { idObj: Math.random().toString(36).substr(2, 9), idAlimento: idA, nome: nome, baseQtd: qtdBase, und: und, baseKcal: kcalBase, status: 'pendente' };
+    return { 
+      idObj: Math.random().toString(36).substr(2, 9), 
+      idAlimento: idA, 
+      nome: nome, 
+      baseQtd: qtdBase, 
+      und: und, 
+      baseKcal: kcalBase, 
+      status: 'pendente',
+      finalKcal: null,
+      finalQtd: null
+    };
   };
 
   let itensCeiaArray = [];
@@ -260,14 +271,21 @@ function renderizarCardapio() {
   if (!cardapioDoDia || cardapioDoDia.data !== pegarDataDeHoje()) return;
   const container = document.getElementById('conteudo-menu');
   
+  // 1. Calcula o déficit vindo estritamente dos itens pulados
   let deficitCaloricoPulados = 0;
-  let itensParaAbsorver = 0;
-
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
       if (item.status === 'pulado') {
         deficitCaloricoPulados += item.baseKcal;
-      } else if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+      }
+    });
+  });
+
+  // 2. Conta apenas os itens PENDENTES que podem absorver o déficit (itens consumidos ficam travados!)
+  let itensParaAbsorver = 0;
+  cardapioDoDia.refeicoes.forEach(ref => {
+    ref.itens.forEach(item => {
+      if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
         itensParaAbsorver++;
       }
     });
@@ -286,9 +304,28 @@ function renderizarCardapio() {
       let novaKcal = item.baseKcal;
       let novaQtd = item.baseQtd;
 
-      if (item.status !== 'pulado' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
-        novaKcal = item.baseKcal + extraKcalPorItem;
-        novaQtd = item.baseQtd * (novaKcal / item.baseKcal);
+      if (item.status === 'consumido') {
+        // Se já foi consumido, usa o valor travado (finalKcal). Se por acaso ainda não estiver travado, trava agora!
+        if (item.finalKcal !== null && item.finalKcal !== undefined) {
+          novaKcal = item.finalKcal;
+          novaQtd = item.finalQtd;
+        } else {
+          if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+            novaKcal = item.baseKcal + extraKcalPorItem;
+            novaQtd = item.baseQtd * (novaKcal / item.baseKcal);
+          }
+          item.finalKcal = novaKcal;
+          item.finalQtd = novaQtd;
+        }
+      } else if (item.status === 'pendente') {
+        // Itens pendentes continuam dinâmicos absorvendo o que for pulado
+        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0) {
+          novaKcal = item.baseKcal + extraKcalPorItem;
+          novaQtd = item.baseQtd * (novaKcal / item.baseKcal);
+        }
+      } else if (item.status === 'pulado') {
+        novaKcal = 0;
+        novaQtd = 0;
       }
 
       if (item.status !== 'pulado') {
@@ -306,7 +343,7 @@ function renderizarCardapio() {
 
       itensHtml += `
         <li class="refeicao-item ${isCons ? 'consumido' : ''} ${isPula ? 'pulado' : ''}">
-          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${extraKcalPorItem > 0 && item.status !== 'pulado' ? '📈' : ''}</span>
+          <span style="flex:1;">• ${qtdFormatada}${item.und} de ${item.nome} ${extraKcalPorItem > 0 && item.status === 'pendente' ? '📈' : ''}</span>
           <div class="acoes-item">
             <button class="btn-acao ${isCons ? 'ativo-sim' : ''}" onclick="mudarStatusItem('${item.idObj}', 'consumido')" title="Comi">✅</button>
             <button class="btn-acao ${isPula ? 'ativo-nao' : ''}" onclick="mudarStatusItem('${item.idObj}', 'pulado')" title="Vou Pular">❌</button>
@@ -327,7 +364,7 @@ function renderizarCardapio() {
   
   const alertaEl = document.getElementById('alertas-sistema');
   if (deficitCaloricoPulados > 0) {
-    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado!</p>`;
+    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens pendentes com 📈 absorveram o alimento pulado!</p>`;
   } else {
     alertaEl.innerHTML = '';
   }
@@ -340,7 +377,10 @@ window.mudarStatusItem = function(idObj, novoStatus) {
     ref.itens.forEach(item => {
       if (item.idObj === idObj) {
         if (item.status === novoStatus) {
+          // Destrava e volta a ser pendente se clicar no mesmo botão
           item.status = 'pendente';
+          item.finalKcal = null;
+          item.finalQtd = null;
         } else {
           item.status = novoStatus;
           if (novoStatus === 'consumido') {
@@ -349,6 +389,10 @@ window.mudarStatusItem = function(idObj, novoStatus) {
               alimentoOriginal.historico.push(pegarDataDeHoje());
               salvarEstoque();
             }
+          } else {
+            // Se virou pulado, limpa qualquer trava anterior
+            item.finalKcal = null;
+            item.finalQtd = null;
           }
         }
       }

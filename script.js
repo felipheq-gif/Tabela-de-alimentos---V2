@@ -86,9 +86,6 @@ function gerarMenuDinamico() {
   const protPrinc = pegar('frango') || pegar('carne_moida') || pegar('ovos') || pegarSub('proteina');
   const leguminosa = pegar('feijao');
   
-  const carboCafe = pegar('pao') || pegar('tapioca') || pegar('batata_doce') || pegar('aveia');
-  const protCafe = pegar('ovos') || pegar('iogurte') || pegar('frango');
-  
   const liqVit = pegar('leite') || pegar('iogurte') || null;
   const fruVit = pegar('banana') || pegar('aveia');
   const extVit = pegar('farinha_lactea') || pegar('mucilon') || null;
@@ -115,8 +112,8 @@ function gerarMenuDinamico() {
       {
         nome: "Café da Manhã",
         itens: [
-          criarItem(carboCafe.id, carboCafe.nome, carboCafe.id === 'pao' ? 2 : (carboCafe.id === 'tapioca' ? 100 : 150), carboCafe.id === 'pao' ? ' un.' : 'g', carboCafe.id === 'pao' ? 290 : 240),
-          criarItem(protCafe.id, protCafe.nome, protCafe.id === 'ovos' ? 3 : 150, protCafe.id === 'ovos' ? ' un.' : 'g', protCafe.id === 'ovos' ? 216 : 247)
+          criarItem('pao', 'Pão Francês', 2, ' un.', 290),
+          criarItem('ovos', 'Ovo Inteiro', 3, ' un.', 216)
         ]
       },
       {
@@ -136,7 +133,6 @@ function gerarMenuDinamico() {
           ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
           ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
           ...(temChia ? [criarItem(temChia.id, temChia.nome, 15, 'g', 70)] : []),
-          // Creatina fixa estritamente em 3g
           ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
         ]
       },
@@ -245,6 +241,7 @@ function renderizarCardapio() {
 
   const extraKcalPorItem = itensParaAbsorver > 0 ? (deficitCaloricoPulados / itensParaAbsorver) : 0;
   let totalKcalDia = 0;
+  let kcalConsumidas = 0;
   let html = '';
 
   cardapioDoDia.refeicoes.forEach((ref, index) => {
@@ -263,6 +260,10 @@ function renderizarCardapio() {
       if (item.status !== 'pulado') {
         kcalRefeicao += novaKcal;
         totalKcalDia += novaKcal;
+      }
+
+      if (item.status === 'consumido') {
+        kcalConsumidas += novaKcal;
       }
 
       const qtdFormatada = (item.und === 'g' || item.und === 'ml') ? Math.round(novaQtd) : Number(novaQtd.toFixed(1));
@@ -288,8 +289,9 @@ function renderizarCardapio() {
     `;
   });
 
-  // Atualiza o painel de Meta Diária localizado no topo da página
-  document.getElementById('projecao-texto').innerHTML = `Projeção Atual: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
+  // Atualiza o painel exibindo o que foi consumido em tempo real versus o total projetado
+  document.getElementById('projecao-texto').innerHTML = `Consumidas: <strong>~${Math.round(kcalConsumidas)} kcal</strong> | Total Projetado: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
+  
   const alertaEl = document.getElementById('alertas-sistema');
   if (deficitCaloricoPulados > 0) {
     alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Os itens com 📈 absorveram o alimento pulado!</p>`;

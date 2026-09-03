@@ -48,51 +48,50 @@ function carregarEstoque() {
   const container = document.getElementById('lista-estoque');
   const selectAvulso = document.getElementById('select-avulso');
   
-  container.innerHTML = '';
+  if(container) container.innerHTML = '';
   if(selectAvulso) selectAvulso.innerHTML = '<option value="" disabled selected>Escolha o alimento...</option>';
 
   alimentos.forEach(item => {
-    const label = document.createElement('label');
-    label.className = 'item-checkbox';
-    const limit = item.limiteSemanal ? `<small style="color: #fca5a5;"> (Máx ${item.limiteSemanal}x/sem)</small>` : '';
-    label.innerHTML = `<input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="alternarEstoque('${item.id}')"> <span>${item.nome} ${limit}</span>`;
-    container.appendChild(label);
-
-    if(selectAvulso) selectAvulso.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+    if(container) {
+      const label = document.createElement('label');
+      label.className = 'item-checkbox';
+      const limit = item.limiteSemanal ? `<small style="color: #fca5a5;"> (Máx ${item.limiteSemanal}x/sem)</small>` : '';
+      label.innerHTML = `<input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="alternarEstoque('${item.id}')"> <span>${item.nome} ${limit}</span>`;
+      container.appendChild(label);
+    }
+    if(selectAvulso) {
+      selectAvulso.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+    }
   });
 }
 
-function alternarEstoque(id) {
+window.alternarEstoque = function(id) {
   const item = alimentos.find(a => a.id === id);
   if (item) { item.emEstoque = !item.emEstoque; salvarEstoque(); }
+};
+
+const formAlimento = document.getElementById('form-alimento');
+if(formAlimento) {
+  formAlimento.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const limiteInput = document.getElementById('limite-alimento').value;
+    const kcal100 = document.getElementById('kcal-100g').value;
+    
+    alimentos.push({
+      id: 'custom_' + Date.now(),
+      nome: document.getElementById('nome-alimento').value,
+      cat: document.getElementById('cat-alimento').value,
+      kcal100g: kcal100 ? parseFloat(kcal100) : 0,
+      limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
+      emEstoque: true,
+      historico: []
+    });
+    salvarEstoque();
+    carregarEstoque();
+    this.reset();
+  });
 }
 
-document.getElementById('form-alimento').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const limiteInput = document.getElementById('limite-alimento').value;
-  const kcal100 = document.getElementById('kcal-100g').value;
-  const prot100 = document.getElementById('prot-100g').value;
-  const carbo100 = document.getElementById('carbo-100g').value;
-  const gord100 = document.getElementById('gord-100g').value;
-
-  alimentos.push({
-    id: 'custom_' + Date.now(),
-    nome: document.getElementById('nome-alimento').value,
-    cat: document.getElementById('cat-alimento').value,
-    kcal100g: kcal100 ? parseFloat(kcal100) : 0,
-    prot100g: prot100 ? parseFloat(prot100) : 0,
-    carbo100g: carbo100 ? parseFloat(carbo100) : 0,
-    gord100g: gord100 ? parseFloat(gord100) : 0,
-    limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
-    emEstoque: true,
-    historico: []
-  });
-  salvarEstoque();
-  carregarEstoque();
-  this.reset();
-});
-
-// A MATEMÁTICA PRINCIPAL COM MEMÓRIA PARA AVULSOS
 function atualizarDinamicaCardapio() {
   if (!cardapioDoDia) return;
 
@@ -102,12 +101,8 @@ function atualizarDinamicaCardapio() {
 
   cardapioDoDia.refeicoes.forEach(ref => {
     ref.itens.forEach(item => {
-      if (item.status === 'pulado') {
-        deficitGerado += item.baseKcal;
-      }
-      if (item.status === 'consumido' && item.finalKcal !== null) {
-        deficitAbsorvido += (item.finalKcal - item.baseKcal);
-      }
+      if (item.status === 'pulado') deficitGerado += item.baseKcal;
+      if (item.status === 'consumido' && item.finalKcal !== null) deficitAbsorvido += (item.finalKcal - item.baseKcal);
       if (item.status === 'pendente' && (item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia' && !item.isAvulso) {
         pendentesFlexiveis++;
       }
@@ -142,213 +137,225 @@ function atualizarDinamicaCardapio() {
 }
 
 function gerarMenuDinamico() {
-  const disponiveis = alimentos.filter(a => a.emEstoque && podeConsumirHoje(a));
-  const pegar = (id) => disponiveis.find(a => a.id === id);
-  const pegarSub = (cat, ignorar) => disponiveis.find(a => a.cat === cat && a.id !== ignorar);
+  try {
+    const disponiveis = alimentos.filter(a => a.emEstoque && podeConsumirHoje(a));
+    const pegar = (id) => disponiveis.find(a => a.id === id);
+    const pegarSub = (cat, ignorar) => disponiveis.find(a => a.cat === cat && a.id !== ignorar);
 
-  // Substitutos dinâmicos para todas as refeições
-  const carboManha = pegar('pao') || pegar('tapioca') || pegar('aveia') || pegar('batata_doce') || pegar('banana') || pegarSub('carbo');
-  const protManha = pegar('ovos') || pegar('leite') || pegar('iogurte') || pegar('frango') || pegarSub('proteina');
-  
-  const carboPrinc = pegar('arroz') || pegar('macarrao') || pegar('batata_doce') || pegarSub('carbo');
-  const protPrinc = pegar('frango') || pegar('carne_moida') || pegar('ovos') || pegarSub('proteina');
-  const leguminosa = pegar('feijao');
-  
-  const liqVit = pegar('leite') || pegar('iogurte') || null;
-  const fruVit = pegar('banana') || pegar('aveia');
-  const extVit = pegar('farinha_lactea') || pegar('mucilon') || null;
-  const temAveia = pegar('aveia');
-  const temLeitePo = pegar('leite_po');
-  const temChia = pegar('chia');
-  const temCrea = pegar('creatina');
-  
-  const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
-  const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
-
-  if (!carboPrinc || !protPrinc || !carboManha || !protManha) {
-    document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444;">Falta proteína ou carboidrato no estoque para gerar o cardápio!</p>';
-    return;
-  }
-
-  const criarItem = (idA, nome, qtdBase, und, kcalBase) => {
-    return { 
-      idObj: Math.random().toString(36).substr(2, 9), 
-      idAlimento: idA, 
-      nome: nome, 
-      baseQtd: qtdBase, 
-      und: und, 
-      baseKcal: kcalBase, 
-      currentQtd: qtdBase,
-      currentKcal: kcalBase,
-      finalKcal: null,
-      finalQtd: null,
-      status: 'pendente'
-    };
-  };
-
-  // --- LÓGICA DINÂMICA DO CAFÉ DA MANHÃ ---
-  let itensCafeArray = [];
-  if (carboManha) {
-    let qtd = 100, und = 'g', kcal = 240;
-    if (carboManha.id === 'pao') { qtd = 2; und = ' un.'; kcal = 290; }
-    else if (carboManha.id === 'tapioca') { qtd = 100; kcal = 240; }
-    else if (carboManha.id === 'aveia') { qtd = 60; kcal = 228; }
-    else if (carboManha.id === 'batata_doce') { qtd = 200; kcal = 172; }
-    else if (carboManha.id === 'banana') { qtd = 150; kcal = 133; }
-    itensCafeArray.push(criarItem(carboManha.id, carboManha.nome, qtd, und, kcal));
-  }
-  if (protManha) {
-    let qtd = 300, und = 'ml', kcal = 180;
-    if (protManha.id === 'ovos') { qtd = 3; und = ' un.'; kcal = 216; }
-    else if (protManha.id === 'iogurte') { qtd = 200; und = 'g'; kcal = 120; }
-    else if (protManha.id === 'frango') { qtd = 100; und = 'g'; kcal = 165; }
-    else if (protManha.id === 'leite') { qtd = 300; und = 'ml'; kcal = 180; }
-    itensCafeArray.push(criarItem(protManha.id, protManha.nome, qtd, und, kcal));
-  }
-
-  // --- LÓGICA DINÂMICA DA CEIA ---
-  let itensCeiaArray = [];
-  if (bebidaLactea) {
-    let kcalBebida = 111;
-    if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
-    itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
-    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
-    else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
-  } else if (leiteCeia) {
-    itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
-    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
-  } else if (iogurteCeia) {
-    itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
-    if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
-  } else {
-    itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
-    itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
-  }
-
-  const tempCardapio = {
-    data: pegarDataDeHoje(),
-    refeicoes: [
-      {
-        nome: "Café da Manhã",
-        itens: itensCafeArray
-      },
-      {
-        nome: "Almoço",
-        itens: [
-          criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
-          ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
-          criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
-        ]
-      },
-      {
-        nome: "Café da Tarde (Vitamina)",
-        itens: [
-          ...(liqVit ? [criarItem(liqVit.id, liqVit.nome, 300, 'ml', liqVit.id === 'leite' ? 180 : 100)] : []),
-          ...(fruVit ? [criarItem(fruVit.id, fruVit.nome, fruVit.id === 'banana' ? 100 : 30, 'g', fruVit.id === 'banana' ? 89 : 114)] : []),
-          ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
-          ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
-          ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
-          ...(temChia ? [criarItem(temChia.id, temChia.nome, 20, 'g', 93)] : []),
-          ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
-        ]
-      },
-      {
-        nome: "Jantar",
-        itens: [
-          criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
-          ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
-          criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
-        ]
-      },
-      {
-        nome: "Ceia",
-        itens: itensCeiaArray
-      }
-    ]
-  };
-
-  let totalOvos = 0;
-  tempCardapio.refeicoes.forEach(ref => {
-    ref.itens.forEach(item => {
-      if (item.idAlimento === 'ovos') totalOvos += item.baseQtd;
-    });
-  });
-
-  if (totalOvos > 4) {
-    let excessoOvos = totalOvos - 4;
-    let kcalPerdidaOvos = excessoOvos * 72;
+    const carboManha = pegar('pao') || pegar('tapioca') || pegar('aveia') || pegar('batata_doce') || pegar('banana') || pegarSub('carbo');
+    const protManha = pegar('ovos') || pegar('leite') || pegar('iogurte') || pegar('frango') || pegarSub('proteina');
     
-    tempCardapio.refeicoes.forEach(ref => {
-      ref.itens.forEach(item => {
-        if (item.idAlimento === 'ovos' && excessoOvos > 0) {
-          let reducao = Math.min(item.baseQtd, excessoOvos);
-          item.baseQtd -= reducao;
-          item.baseKcal -= reducao * 72;
-          item.currentQtd = item.baseQtd;
-          item.currentKcal = item.baseKcal;
-          excessoOvos -= reducao;
+    const carboPrinc = pegar('arroz') || pegar('macarrao') || pegar('batata_doce') || pegarSub('carbo');
+    const protPrinc = pegar('frango') || pegar('carne_moida') || pegar('ovos') || pegarSub('proteina');
+    const leguminosa = pegar('feijao');
+    
+    const liqVit = pegar('leite') || pegar('iogurte') || null;
+    const fruVit = pegar('banana') || pegar('aveia');
+    const extVit = pegar('farinha_lactea') || pegar('mucilon') || null;
+    const temAveia = pegar('aveia');
+    const temLeitePo = pegar('leite_po');
+    const temChia = pegar('chia');
+    const temCrea = pegar('creatina');
+    
+    const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
+    const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
+
+    if (!carboPrinc || !protPrinc || !carboManha || !protManha) {
+      document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444; text-align:center;">⚠️ Falta proteína ou carboidrato marcado no estoque para gerar o cardápio!</p>';
+      return;
+    }
+
+    const criarItem = (idA, nome, qtdBase, und, kcalBase) => {
+      return { 
+        idObj: Math.random().toString(36).substr(2, 9), 
+        idAlimento: idA, 
+        nome: nome, 
+        baseQtd: qtdBase, 
+        und: und, 
+        baseKcal: kcalBase, 
+        currentQtd: qtdBase,
+        currentKcal: kcalBase,
+        finalKcal: null,
+        finalQtd: null,
+        status: 'pendente'
+      };
+    };
+
+    // --- LÓGICA BLINDADA DO CAFÉ DA MANHÃ ---
+    let itensCafeArray = [];
+    if (carboManha) {
+      let qtd = 100, und = 'g', kcal = 240;
+      if (carboManha.id === 'pao') { qtd = 2; und = ' un.'; kcal = 290; }
+      else if (carboManha.id === 'tapioca') { qtd = 100; kcal = 240; }
+      else if (carboManha.id === 'aveia') { qtd = 60; kcal = 228; }
+      else if (carboManha.id === 'batata_doce') { qtd = 200; kcal = 172; }
+      else if (carboManha.id === 'banana') { qtd = 150; kcal = 133; }
+      else { 
+        // Fallback genérico caso puxe outro carboidrato
+        qtd = 100; 
+        kcal = carboManha.kcal100g || 240; 
+      }
+      itensCafeArray.push(criarItem(carboManha.id, carboManha.nome, qtd, und, kcal));
+    }
+    if (protManha) {
+      let qtd = 300, und = 'ml', kcal = 180;
+      if (protManha.id === 'ovos') { qtd = 3; und = ' un.'; kcal = 216; }
+      else if (protManha.id === 'iogurte') { qtd = 200; und = 'g'; kcal = 120; }
+      else if (protManha.id === 'frango') { qtd = 100; und = 'g'; kcal = 165; }
+      else if (protManha.id === 'leite') { qtd = 300; und = 'ml'; kcal = 180; }
+      else {
+        // Fallback genérico para proteína extra
+        qtd = 100; und = 'g'; kcal = protManha.kcal100g || 180;
+      }
+      itensCafeArray.push(criarItem(protManha.id, protManha.nome, qtd, und, kcal));
+    }
+
+    let itensCeiaArray = [];
+    if (bebidaLactea) {
+      let kcalBebida = 111;
+      if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
+      itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
+      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); 
+      else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
+    } else if (leiteCeia) {
+      itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
+      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
+    } else if (iogurteCeia) {
+      itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
+      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
+      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
+    } else {
+      itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
+      itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
+    }
+
+    const tempCardapio = {
+      data: pegarDataDeHoje(),
+      refeicoes: [
+        {
+          nome: "Café da Manhã",
+          itens: itensCafeArray
+        },
+        {
+          nome: "Almoço",
+          itens: [
+            criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
+            ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
+            criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
+          ]
+        },
+        {
+          nome: "Café da Tarde (Vitamina)",
+          itens: [
+            ...(liqVit ? [criarItem(liqVit.id, liqVit.nome, 300, 'ml', liqVit.id === 'leite' ? 180 : 100)] : []),
+            ...(fruVit ? [criarItem(fruVit.id, fruVit.nome, fruVit.id === 'banana' ? 100 : 30, 'g', fruVit.id === 'banana' ? 89 : 114)] : []),
+            ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
+            ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
+            ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
+            ...(temChia ? [criarItem(temChia.id, temChia.nome, 20, 'g', 93)] : []),
+            ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
+          ]
+        },
+        {
+          nome: "Jantar",
+          itens: [
+            criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
+            ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
+            criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
+          ]
+        },
+        {
+          nome: "Ceia",
+          itens: itensCeiaArray
         }
-      });
+      ]
+    };
+
+    let totalOvos = 0;
+    tempCardapio.refeicoes.forEach(ref => {
+      ref.itens.forEach(item => { if (item.idAlimento === 'ovos') totalOvos += item.baseQtd; });
     });
 
-    let itensFlex = [];
+    if (totalOvos > 4) {
+      let excessoOvos = totalOvos - 4;
+      let kcalPerdidaOvos = excessoOvos * 72;
+      
+      tempCardapio.refeicoes.forEach(ref => {
+        ref.itens.forEach(item => {
+          if (item.idAlimento === 'ovos' && excessoOvos > 0) {
+            let reducao = Math.min(item.baseQtd, excessoOvos);
+            item.baseQtd -= reducao;
+            item.baseKcal -= reducao * 72;
+            item.currentQtd = item.baseQtd;
+            item.currentKcal = item.baseKcal;
+            excessoOvos -= reducao;
+          }
+        });
+      });
+
+      let itensFlex = [];
+      tempCardapio.refeicoes.forEach(ref => {
+        ref.itens.forEach(item => {
+          if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') itensFlex.push(item);
+        });
+      });
+
+      if (itensFlex.length > 0) {
+        let extra = kcalPerdidaOvos / itensFlex.length;
+        itensFlex.forEach(item => {
+          item.baseKcal += extra;
+          item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extra));
+        });
+      }
+    }
+
+    let somaBase = 0;
+    let qtdFlex = 0;
     tempCardapio.refeicoes.forEach(ref => {
       ref.itens.forEach(item => {
-        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') itensFlex.push(item);
+        somaBase += item.baseKcal;
+        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') qtdFlex++;
       });
     });
 
-    if (itensFlex.length > 0) {
-      let extra = kcalPerdidaOvos / itensFlex.length;
-      itensFlex.forEach(item => {
-        item.baseKcal += extra;
-        item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extra));
+    const META_DIARIA = 3300;
+    if (somaBase < META_DIARIA && qtdFlex > 0) {
+      let deficit = META_DIARIA - somaBase;
+      let extraPorFlex = deficit / qtdFlex;
+      tempCardapio.refeicoes.forEach(ref => {
+        ref.itens.forEach(item => {
+          if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') {
+            item.baseKcal += extraPorFlex;
+            item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlex));
+          }
+        });
       });
     }
-  }
 
-  let somaBase = 0;
-  let qtdFlex = 0;
-  tempCardapio.refeicoes.forEach(ref => {
-    ref.itens.forEach(item => {
-      somaBase += item.baseKcal;
-      if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') qtdFlex++;
-    });
-  });
-
-  const META_DIARIA = 3300;
-  if (somaBase < META_DIARIA && qtdFlex > 0) {
-    let deficit = META_DIARIA - somaBase;
-    let extraPorFlex = deficit / qtdFlex;
     tempCardapio.refeicoes.forEach(ref => {
       ref.itens.forEach(item => {
-        if ((item.und === 'g' || item.und === 'ml') && item.baseKcal > 0 && item.idAlimento !== 'chia') {
-          item.baseKcal += extraPorFlex;
-          item.baseQtd = item.baseQtd * (item.baseKcal / (item.baseKcal - extraPorFlex));
-        }
+        item.finalKcal = item.baseKcal;
+        item.finalQtd = item.baseQtd;
       });
     });
+
+    cardapioDoDia = tempCardapio;
+    atualizarDinamicaCardapio();
+    salvarCardapio();
+    renderizarCardapio();
+    
+  } catch (erro) {
+    console.error("Falha no motor do Cardápio:", erro);
+    alert("Houve um erro no motor do cardápio! Confira o console.");
   }
-
-  tempCardapio.refeicoes.forEach(ref => {
-    ref.itens.forEach(item => {
-      item.finalKcal = item.baseKcal;
-      item.finalQtd = item.baseQtd;
-    });
-  });
-
-  cardapioDoDia = tempCardapio;
-  atualizarDinamicaCardapio();
-  salvarCardapio();
-  renderizarCardapio();
 }
 
 function renderizarCardapio() {
   if (!cardapioDoDia || cardapioDoDia.data !== pegarDataDeHoje()) return;
   const container = document.getElementById('conteudo-menu');
+  if(!container) return;
   
   let deficitGerado = 0;
   let deficitAbsorvido = 0;
@@ -373,7 +380,6 @@ function renderizarCardapio() {
         kcalRefeicao += item.currentKcal;
         totalKcalDia += item.currentKcal;
       }
-
       if (item.status === 'consumido') {
         kcalConsumidas += item.currentKcal;
       }
@@ -405,15 +411,18 @@ function renderizarCardapio() {
     `;
   });
 
-  document.getElementById('projecao-texto').innerHTML = `Consumidas: <strong>~${Math.round(kcalConsumidas)} kcal</strong> | Total Projetado: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
+  const projecaoEl = document.getElementById('projecao-texto');
+  if(projecaoEl) projecaoEl.innerHTML = `Consumidas: <strong>~${Math.round(kcalConsumidas)} kcal</strong> | Total Projetado: <strong>~${Math.round(totalKcalDia)} kcal</strong>`;
   
   const alertaEl = document.getElementById('alertas-sistema');
-  if (extraRestanteVisual > 0.5) {
-    alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Itens pendentes 📈 absorveram o alimento pulado!</p>`;
-  } else if (extraRestanteVisual < -0.5) {
-    alertaEl.innerHTML = `<p style="font-size: 12px; color: #38bdf8; margin-top: 6px;">ℹ️ Consumo extra adicionado. Itens pendentes 📉 foram reduzidos para manter a meta.</p>`;
-  } else {
-    alertaEl.innerHTML = '';
+  if (alertaEl) {
+    if (extraRestanteVisual > 0.5) {
+      alertaEl.innerHTML = `<p style="font-size: 12px; color: #fbbf24; margin-top: 6px;">⚠️ Recalculando... Itens pendentes 📈 absorveram o alimento pulado!</p>`;
+    } else if (extraRestanteVisual < -0.5) {
+      alertaEl.innerHTML = `<p style="font-size: 12px; color: #38bdf8; margin-top: 6px;">ℹ️ Consumo extra adicionado. Itens pendentes 📉 foram reduzidos para manter a meta.</p>`;
+    } else {
+      alertaEl.innerHTML = '';
+    }
   }
 
   container.innerHTML = html;
@@ -455,58 +464,70 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   renderizarCardapio(); 
 };
 
-// Adição de Consumo Avulso com o Banco de Memória embutido
-document.getElementById('btn-add-avulso').addEventListener('click', function() {
-  if (!cardapioDoDia) return alert("Gere o menu do dia primeiro!");
+// BOTÕES COM TRAVA ANTI-CRASH (Evita falhas caso o HTML não esteja 100% igual)
+const btnAvulso = document.getElementById('btn-add-avulso');
+if (btnAvulso) {
+  btnAvulso.addEventListener('click', function() {
+    if (!cardapioDoDia) return alert("Gere o menu do dia primeiro!");
 
-  const id = document.getElementById('select-avulso').value;
-  const qtd = parseFloat(document.getElementById('qtd-avulso').value);
-  if (!id || isNaN(qtd) || qtd <= 0) return alert("Preencha o alimento e a quantidade corretamente.");
+    const selectEl = document.getElementById('select-avulso');
+    const qtdEl = document.getElementById('qtd-avulso');
+    
+    if(!selectEl || !qtdEl) return;
 
-  const alimento = alimentos.find(a => a.id === id);
-  
-  const mapKcal = {
-    pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
-    aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
-    frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
-    leite_po: 5.0, chia: 4.66
-  };
-  
-  let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
-  const isUnit = (id === 'pao' || id === 'ovos');
-  const kcalReal = kcalUnidade * qtd; 
-  const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
+    const id = selectEl.value;
+    const qtd = parseFloat(qtdEl.value);
+    
+    if (!id || isNaN(qtd) || qtd <= 0) return alert("Preencha o alimento e a quantidade corretamente.");
 
-  let refAvulsa = cardapioDoDia.refeicoes.find(r => r.nome === "Refeições Extras (Avulsos)");
-  if (!refAvulsa) {
-    refAvulsa = { nome: "Refeições Extras (Avulsos)", itens: [] };
-    cardapioDoDia.refeicoes.push(refAvulsa);
-  }
+    const alimento = alimentos.find(a => a.id === id);
+    const mapKcal = {
+      pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
+      aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
+      frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
+      leite_po: 5.0, chia: 4.66
+    };
+    
+    let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
+    const isUnit = (id === 'pao' || id === 'ovos');
+    const kcalReal = kcalUnidade * qtd; 
+    const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
 
-  refAvulsa.itens.push({
-    idObj: 'avulso_' + Date.now(),
-    idAlimento: id,
-    nome: alimento.nome,
-    baseQtd: 0,
-    und: und,
-    baseKcal: 0,
-    avulsoQtd: qtd,       
-    avulsoKcal: kcalReal, 
-    currentQtd: qtd,
-    currentKcal: kcalReal,
-    finalQtd: qtd,
-    finalKcal: kcalReal,
-    status: 'consumido',
-    isAvulso: true
+    let refAvulsa = cardapioDoDia.refeicoes.find(r => r.nome === "Refeições Extras (Avulsos)");
+    if (!refAvulsa) {
+      refAvulsa = { nome: "Refeições Extras (Avulsos)", itens: [] };
+      cardapioDoDia.refeicoes.push(refAvulsa);
+    }
+
+    refAvulsa.itens.push({
+      idObj: 'avulso_' + Date.now(),
+      idAlimento: id,
+      nome: alimento.nome,
+      baseQtd: 0,
+      und: und,
+      baseKcal: 0,
+      avulsoQtd: qtd,       
+      avulsoKcal: kcalReal, 
+      currentQtd: qtd,
+      currentKcal: kcalReal,
+      finalQtd: qtd,
+      finalKcal: kcalReal,
+      status: 'consumido',
+      isAvulso: true
+    });
+
+    qtdEl.value = '';
+    atualizarDinamicaCardapio();
+    salvarCardapio();
+    renderizarCardapio();
   });
+}
 
-  document.getElementById('qtd-avulso').value = '';
-  atualizarDinamicaCardapio();
-  salvarCardapio();
-  renderizarCardapio();
-});
+const btnGerar = document.getElementById('btn-gerar');
+if (btnGerar) {
+  btnGerar.addEventListener('click', gerarMenuDinamico);
+}
 
-document.getElementById('btn-gerar').addEventListener('click', gerarMenuDinamico);
 window.onload = function() {
   carregarEstoque();
   if (cardapioDoDia && cardapioDoDia.data === pegarDataDeHoje()) {

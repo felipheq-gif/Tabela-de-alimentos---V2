@@ -146,6 +146,10 @@ function gerarMenuDinamico() {
   const pegar = (id) => disponiveis.find(a => a.id === id);
   const pegarSub = (cat, ignorar) => disponiveis.find(a => a.cat === cat && a.id !== ignorar);
 
+  // Substitutos dinâmicos para todas as refeições
+  const carboManha = pegar('pao') || pegar('tapioca') || pegar('aveia') || pegar('batata_doce') || pegar('banana') || pegarSub('carbo');
+  const protManha = pegar('ovos') || pegar('leite') || pegar('iogurte') || pegar('frango') || pegarSub('proteina');
+  
   const carboPrinc = pegar('arroz') || pegar('macarrao') || pegar('batata_doce') || pegarSub('carbo');
   const protPrinc = pegar('frango') || pegar('carne_moida') || pegar('ovos') || pegarSub('proteina');
   const leguminosa = pegar('feijao');
@@ -161,8 +165,8 @@ function gerarMenuDinamico() {
   const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
   const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
 
-  if (!carboPrinc || !protPrinc) {
-    document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444;">Falta proteína ou carboidrato no estoque!</p>';
+  if (!carboPrinc || !protPrinc || !carboManha || !protManha) {
+    document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444;">Falta proteína ou carboidrato no estoque para gerar o cardápio!</p>';
     return;
   }
 
@@ -182,29 +186,43 @@ function gerarMenuDinamico() {
     };
   };
 
-  let itensCeiaArray = [];
-  const bebidaLactea = pegar('bebida_lactea');
-  const leiteCeia = pegar('leite');
-  const iogurteCeia = pegar('iogurte');
-  const batataCeia = pegar('batata_doce');
-  const aveiaCeia = pegar('aveia');
-  const bananaCeia = pegar('banana');
+  // --- LÓGICA DINÂMICA DO CAFÉ DA MANHÃ ---
+  let itensCafeArray = [];
+  if (carboManha) {
+    let qtd = 100, und = 'g', kcal = 240;
+    if (carboManha.id === 'pao') { qtd = 2; und = ' un.'; kcal = 290; }
+    else if (carboManha.id === 'tapioca') { qtd = 100; kcal = 240; }
+    else if (carboManha.id === 'aveia') { qtd = 60; kcal = 228; }
+    else if (carboManha.id === 'batata_doce') { qtd = 200; kcal = 172; }
+    else if (carboManha.id === 'banana') { qtd = 150; kcal = 133; }
+    itensCafeArray.push(criarItem(carboManha.id, carboManha.nome, qtd, und, kcal));
+  }
+  if (protManha) {
+    let qtd = 300, und = 'ml', kcal = 180;
+    if (protManha.id === 'ovos') { qtd = 3; und = ' un.'; kcal = 216; }
+    else if (protManha.id === 'iogurte') { qtd = 200; und = 'g'; kcal = 120; }
+    else if (protManha.id === 'frango') { qtd = 100; und = 'g'; kcal = 165; }
+    else if (protManha.id === 'leite') { qtd = 300; und = 'ml'; kcal = 180; }
+    itensCafeArray.push(criarItem(protManha.id, protManha.nome, qtd, und, kcal));
+  }
 
+  // --- LÓGICA DINÂMICA DA CEIA ---
+  let itensCeiaArray = [];
   if (bebidaLactea) {
     let kcalBebida = 111;
     if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
     itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
     else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
   } else if (leiteCeia) {
     itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
   } else if (iogurteCeia) {
     itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
     if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); // Atualizado para gramas
+    else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
   } else {
     itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
     itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
@@ -215,10 +233,7 @@ function gerarMenuDinamico() {
     refeicoes: [
       {
         nome: "Café da Manhã",
-        itens: [
-          criarItem('pao', 'Pão Francês', 2, ' un.', 290),
-          criarItem('ovos', 'Ovo Inteiro', 3, ' un.', 216)
-        ]
+        itens: itensCafeArray
       },
       {
         nome: "Almoço",
@@ -232,7 +247,6 @@ function gerarMenuDinamico() {
         nome: "Café da Tarde (Vitamina)",
         itens: [
           ...(liqVit ? [criarItem(liqVit.id, liqVit.nome, 300, 'ml', liqVit.id === 'leite' ? 180 : 100)] : []),
-          // Atualizado para gramas de forma flexível
           ...(fruVit ? [criarItem(fruVit.id, fruVit.nome, fruVit.id === 'banana' ? 100 : 30, 'g', fruVit.id === 'banana' ? 89 : 114)] : []),
           ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
           ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
@@ -453,13 +467,13 @@ document.getElementById('btn-add-avulso').addEventListener('click', function() {
   
   const mapKcal = {
     pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
-    aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555, // Banana atualizada para gramas
+    aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
     frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
     leite_po: 5.0, chia: 4.66
   };
   
   let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
-  const isUnit = (id === 'pao' || id === 'ovos'); // Banana removida daqui
+  const isUnit = (id === 'pao' || id === 'ovos');
   const kcalReal = kcalUnidade * qtd; 
   const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
 

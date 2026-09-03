@@ -157,8 +157,13 @@ function gerarMenuDinamico() {
     const temChia = pegar('chia');
     const temCrea = pegar('creatina');
     
-    const protCeia = pegar('iogurte') || pegar('ovos') || pegar('leite');
-    const carboCeia = pegar('bebida_lactea') || pegar('batata_doce') || pegar('aveia') || pegar('banana');
+    // Variáveis da Ceia Restauradas!
+    const bebidaLactea = pegar('bebida_lactea');
+    const leiteCeia = pegar('leite');
+    const iogurteCeia = pegar('iogurte');
+    const batataCeia = pegar('batata_doce');
+    const aveiaCeia = pegar('aveia');
+    const bananaCeia = pegar('banana');
 
     if (!carboPrinc || !protPrinc || !carboManha || !protManha) {
       document.getElementById('conteudo-menu').innerHTML = '<p style="color:#ef4444; text-align:center;">⚠️ Falta proteína ou carboidrato marcado no estoque para gerar o cardápio!</p>';
@@ -181,7 +186,6 @@ function gerarMenuDinamico() {
       };
     };
 
-    // --- LÓGICA BLINDADA DO CAFÉ DA MANHÃ ---
     let itensCafeArray = [];
     if (carboManha) {
       let qtd = 100, und = 'g', kcal = 240;
@@ -191,7 +195,6 @@ function gerarMenuDinamico() {
       else if (carboManha.id === 'batata_doce') { qtd = 200; kcal = 172; }
       else if (carboManha.id === 'banana') { qtd = 150; kcal = 133; }
       else { 
-        // Fallback genérico caso puxe outro carboidrato
         qtd = 100; 
         kcal = carboManha.kcal100g || 240; 
       }
@@ -204,7 +207,6 @@ function gerarMenuDinamico() {
       else if (protManha.id === 'frango') { qtd = 100; und = 'g'; kcal = 165; }
       else if (protManha.id === 'leite') { qtd = 300; und = 'ml'; kcal = 180; }
       else {
-        // Fallback genérico para proteína extra
         qtd = 100; und = 'g'; kcal = protManha.kcal100g || 180;
       }
       itensCafeArray.push(criarItem(protManha.id, protManha.nome, qtd, und, kcal));
@@ -464,7 +466,6 @@ window.mudarStatusItem = function(idObj, novoStatus) {
   renderizarCardapio(); 
 };
 
-// BOTÕES COM TRAVA ANTI-CRASH (Evita falhas caso o HTML não esteja 100% igual)
 const btnAvulso = document.getElementById('btn-add-avulso');
 if (btnAvulso) {
   btnAvulso.addEventListener('click', function() {

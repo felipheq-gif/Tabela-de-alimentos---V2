@@ -8,7 +8,8 @@
   window.pegarMeta = () => cfg.meta;
 
   // [kcal, proteína, carbo, gordura] por 100g/ml (valores aproximados)
-  const T = { pao:[290,8,58,3.1], tapioca:[240,0,60,0], macarrao:[150,5,31,1], arroz:[130,2.5,28,.3], feijao:[76,4.8,13.6,.5], batata_doce:[86,1.6,20,.1], aveia:[380,13.5,66,7], banana:[89,1.1,23,.3], farinha_lactea:[380,8,80,3], mucilon:[380,8,82,1.5], bebida_lactea:[55.5,2.5,9,1.2], frango:[165,31,0,3.6], carne_moida:[250,26,0,16], ovos:[144,12.6,1,9.5], leite:[60,3.2,4.8,3.3], iogurte:[58,4,5,3], creatina:[0,0,0,0], leite_po:[500,26,38,27], chia:[466,16.5,42,31] };
+  const T = {};
+  Object.entries(window.TABELA_NUTRI || {}).forEach(([k, f]) => T[k] = [f.k, f.p, f.c, f.g]);
   function info(id) {
     const a = alimentos.find(x => x.id === id) || {}, t = T[id] || [0, 0, 0, 0];
     return { k: a.kcal100g || t[0], p: a.prot100g ?? t[1], c: a.carbo100g ?? t[2], g: a.gord100g ?? t[3] };
@@ -240,6 +241,15 @@
       status('Sincronização ativa ✅');
     }).catch(() => status('Não foi possível carregar o Firebase (sem internet?).'));
   }
+
+  // ---------- Banco de alimentos no cadastro ----------
+  const lista = Object.values(window.TABELA_NUTRI || {}), dl = document.createElement('datalist');
+  dl.id = 'dl-tabela'; dl.innerHTML = lista.map(f => `<option value="${f.nome}">`).join(''); document.body.appendChild(dl);
+  const inNome = $('nome-alimento'); inNome.setAttribute('list', 'dl-tabela'); inNome.placeholder = 'Nome (digite para buscar na tabela)';
+  inNome.addEventListener('change', () => {
+    const f = lista.find(x => x.nome.toLowerCase() === inNome.value.trim().toLowerCase()); if (!f) return;
+    $('cat-alimento').value = f.cat; $('kcal-100g').value = f.k; $('prot-100g').value = f.p; $('carbo-100g').value = f.c; $('gord-100g').value = f.g;
+  });
 
   carregarEstoque(); atualizarExtras();
 })();

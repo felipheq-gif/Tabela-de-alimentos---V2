@@ -1,13 +1,14 @@
 // Service Worker do Cardápio Dinâmico
 // Ao alterar qualquer arquivo do site, troque o número da versão abaixo
 // para o celular baixar a atualização.
-const VERSAO = 'cardapio-v4';
+const VERSAO = 'cardapio-v5';
 const ARQUIVOS = [
   './',
   './index.html',
   './style.css',
   './script.js',
   './extras.js',
+  './tabela.js',
   './firebase-config.js',
   './manifest.json',
   './icon-192.png',

@@ -11,23 +11,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Cardápio">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
 </head>
 <body>
   <div class="container">
     <h1>Cardápio Dinâmico</h1>
 
     <!-- 0. Instalar aplicativo -->
-    <button id="btn-instalar" class="btn-primario" style="display:none; margin-bottom: 15px; background: #7c3aed;">📲 Instalar aplicativo no celular</button>
-    <div id="ajuda-ios" class="section-card" style="display:none; border-color: #7c3aed;">
-      <h4 style="color: #a78bfa; margin-bottom: 8px;">Instalar no iPhone / iPad</h4>
-      <p style="font-size: 14px; color: #cbd5e1;">
-        1. Toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima) na barra do Safari.<br>
-        2. Role e toque em <strong>Adicionar à Tela de Início</strong>.<br>
-        3. Toque em <strong>Adicionar</strong>.
-      </p>
-      <button id="btn-fechar-ios" class="btn-primario" style="margin-top: 10px; background: #475569;">Entendi</button>
+    <button id="btn-instalar" class="btn-primario" style="display:block; margin-bottom: 15px; background: #7c3aed;">📲 Instalar aplicativo no celular</button>
+    <div id="ajuda-instalar" class="section-card" style="display:none; border-color: #7c3aed;">
+      <h4 style="color: #a78bfa; margin-bottom: 8px;" id="ajuda-titulo">Como instalar</h4>
+      <p style="font-size: 14px; color: #cbd5e1;" id="ajuda-texto"></p>
+      <button id="btn-fechar-ajuda" class="btn-primario" style="margin-top: 10px; background: #475569;">Entendi</button>
     </div>
 
     <!-- 1. Meta Diária -->
@@ -108,31 +104,40 @@
     // ===== Botão de instalar o app =====
     (function () {
       const btn = document.getElementById('btn-instalar');
-      const ajudaIos = document.getElementById('ajuda-ios');
-      const btnFecharIos = document.getElementById('btn-fechar-ios');
+      const ajuda = document.getElementById('ajuda-instalar');
+      const ajudaTitulo = document.getElementById('ajuda-titulo');
+      const ajudaTexto = document.getElementById('ajuda-texto');
+      const btnFechar = document.getElementById('btn-fechar-ajuda');
       let promptInstalacao = null;
 
       const jaInstalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      if (jaInstalado) return;
+      if (jaInstalado) { btn.style.display = 'none'; return; }
 
       const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-      // Android / Chrome / Edge: o navegador avisa quando dá para instalar
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         promptInstalacao = e;
-        btn.style.display = 'block';
       });
 
       window.addEventListener('appinstalled', () => {
         promptInstalacao = null;
         btn.style.display = 'none';
-        ajudaIos.style.display = 'none';
+        ajuda.style.display = 'none';
       });
 
-      // iPhone / iPad: não existe instalação automática, então mostramos o passo a passo
-      if (ehIOS) btn.style.display = 'block';
+      function mostrarAjuda() {
+        if (ehIOS) {
+          ajudaTitulo.textContent = 'Instalar no iPhone / iPad';
+          ajudaTexto.innerHTML = '1. Abra este site no <strong>Safari</strong>.<br>2. Toque em <strong>Compartilhar</strong> (quadrado com seta para cima).<br>3. Toque em <strong>Adicionar à Tela de Início</strong> e depois em <strong>Adicionar</strong>.';
+        } else {
+          ajudaTitulo.textContent = 'Instalar no Android';
+          ajudaTexto.innerHTML = '1. Abra este site no <strong>Chrome</strong>.<br>2. Toque nos <strong>três pontinhos ⋮</strong> no canto superior.<br>3. Toque em <strong>Instalar app</strong> (ou <strong>Adicionar à tela inicial</strong>).';
+        }
+        ajuda.style.display = 'block';
+        ajuda.scrollIntoView({ behavior: 'smooth' });
+      }
 
       btn.addEventListener('click', async () => {
         if (promptInstalacao) {
@@ -140,13 +145,12 @@
           const { outcome } = await promptInstalacao.userChoice;
           if (outcome === 'accepted') btn.style.display = 'none';
           promptInstalacao = null;
-        } else if (ehIOS) {
-          ajudaIos.style.display = 'block';
-          ajudaIos.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          mostrarAjuda();
         }
       });
 
-      btnFecharIos.addEventListener('click', () => { ajudaIos.style.display = 'none'; });
+      btnFechar.addEventListener('click', () => { ajuda.style.display = 'none'; });
     })();
   </script>
 </body>

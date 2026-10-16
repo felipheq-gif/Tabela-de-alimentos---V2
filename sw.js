@@ -1,21 +1,24 @@
 // Service Worker do Cardápio Dinâmico
 // Ao alterar qualquer arquivo do site, troque o número da versão abaixo
 // para o celular baixar a atualização.
-const VERSAO = 'cardapio-v2';
+const VERSAO = 'cardapio-v3';
 const ARQUIVOS = [
   './',
   './index.html',
   './style.css',
   './script.js',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(VERSAO).then((cache) => cache.addAll(ARQUIVOS))
+    caches.open(VERSAO).then((cache) =>
+      // Guarda um por um: se algum arquivo faltar, os outros continuam sendo salvos
+      Promise.all(ARQUIVOS.map((a) => cache.add(a).catch((e) => console.warn('Sem cache:', a, e))))
+    )
   );
   self.skipWaiting();
 });

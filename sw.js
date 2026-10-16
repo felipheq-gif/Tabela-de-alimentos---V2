@@ -1,7 +1,7 @@
 // Service Worker do Cardápio Dinâmico
 // Ao alterar qualquer arquivo do site, troque o número da versão abaixo
 // para o celular baixar a atualização.
-const VERSAO = 'cardapio-v1';
+const VERSAO = 'cardapio-v2';
 const ARQUIVOS = [
   './',
   './index.html',

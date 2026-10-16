@@ -82,6 +82,9 @@ if(formAlimento) {
       nome: document.getElementById('nome-alimento').value,
       cat: document.getElementById('cat-alimento').value,
       kcal100g: kcal100 ? parseFloat(kcal100) : 0,
+      prot100g: parseFloat(document.getElementById('prot-100g').value) || null,
+      carbo100g: parseFloat(document.getElementById('carbo-100g').value) || null,
+      gord100g: parseFloat(document.getElementById('gord-100g').value) || null,
       limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
       emEstoque: true,
       historico: []
@@ -322,8 +325,8 @@ function gerarMenuDinamico() {
       });
     });
 
-    const META_DIARIA = 3300;
-    if (somaBase < META_DIARIA && qtdFlex > 0) {
+    const META_DIARIA = (typeof pegarMeta === 'function') ? pegarMeta() : 3300;
+    if (somaBase !== META_DIARIA && qtdFlex > 0) {
       let deficit = META_DIARIA - somaBase;
       let extraPorFlex = deficit / qtdFlex;
       tempCardapio.refeicoes.forEach(ref => {

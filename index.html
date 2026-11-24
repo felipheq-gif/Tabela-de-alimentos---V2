@@ -71,13 +71,23 @@
             </select>
             <input type="number" id="limite-alimento" placeholder="Máx dias/semana (ex: 2)">
           </div>
+          <p style="font-size: 12px; color: #94a3b8;">Calorias do alimento e quanto é preciso comer para atingi-las. Ex.: 200 kcal = 200 g.</p>
           <div class="form-row">
-            <input type="number" step="0.1" id="kcal-100g" placeholder="Kcal / 100g">
-            <input type="number" step="0.1" id="prot-100g" placeholder="Proteína (g)">
+            <input type="number" step="0.1" min="0" id="kcal-porcao" placeholder="Calorias (kcal)" required>
+            <input type="number" step="0.1" min="0.1" id="qtd-porcao" placeholder="Quantidade (g)" required>
           </div>
-          <div class="form-row">
-            <input type="number" step="0.1" id="carbo-100g" placeholder="Carbo (g)">
-            <input type="number" step="0.1" id="gord-100g" placeholder="Gordura (g)">
+          <div class="form-full">
+            <select id="und-alimento">
+              <option value="g">A quantidade é em gramas (g)</option>
+              <option value="ml">A quantidade é em mililitros (ml)</option>
+              <option value="un">A quantidade é em unidades (un)</option>
+            </select>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8;">Macros dessa mesma quantidade (opcional):</p>
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <input type="number" step="0.1" min="0" id="prot-porcao" placeholder="Prot. (g)">
+            <input type="number" step="0.1" min="0" id="carbo-porcao" placeholder="Carbo (g)">
+            <input type="number" step="0.1" min="0" id="gord-porcao" placeholder="Gord. (g)">
           </div>
           <div class="form-full">
             <button type="submit" class="btn-primario">Cadastrar Alimento</button>

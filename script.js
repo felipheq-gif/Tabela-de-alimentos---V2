@@ -30,6 +30,46 @@ function pegarDataDeHoje() { return new Date().toLocaleDateString('pt-BR'); }
 function salvarEstoque() { localStorage.setItem('meuEstoqueOficial', JSON.stringify(alimentos)); }
 function salvarCardapio() { localStorage.setItem('cardapioDoDia', JSON.stringify(cardapioDoDia)); }
 
+// ===== Calorias por alimento =====
+// Cada alimento guarda a unidade ('g', 'ml' ou 'un'), as calorias (porcaoKcal) e a quantidade
+// necessária para atingir essas calorias (porcaoQtd). Ex.: 200 kcal = 200 g  ->  1 kcal por g.
+const UND_PADRAO = { pao: 'un', ovos: 'un', leite: 'ml', bebida_lactea: 'ml' };
+const KCAL_PADRAO = { // kcal por 1 g, 1 ml ou 1 un (alimentos que já vinham no app)
+  pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
+  aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
+  frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
+  leite_po: 5.0, chia: 4.66
+};
+function undDe(a) { return (a && a.unidade) || UND_PADRAO[a && a.id] || 'g'; }
+function undTexto(a) { return undDe(a) === 'un' ? ' un.' : undDe(a); }
+function kcalPorUn(a) { return (a && a.porcaoQtd > 0) ? (a.porcaoKcal || 0) / a.porcaoQtd : 0; }
+function kcalDe(a, qtd) { return kcalPorUn(a) * qtd; }
+function rotuloPorcao(a) {
+  const n = v => Number((v || 0).toFixed(1));
+  return `${n(a.porcaoKcal)} kcal = ${n(a.porcaoQtd)}${undTexto(a)}`;
+}
+
+// Converte alimentos salvos no formato antigo (kcal e macros "por 100 g") para o novo.
+function migrarAlimentos() {
+  let mudou = false;
+  alimentos.forEach(a => {
+    if (a.porcaoQtd > 0) return;
+    const un = undDe(a) === 'un';
+    a.unidade = undDe(a);
+    a.porcaoQtd = un ? 1 : 100;
+    a.porcaoKcal = a.kcal100g ? (un ? a.kcal100g / 2 : a.kcal100g) : (KCAL_PADRAO[a.id] || 0) * a.porcaoQtd; // 1 un ~ 50 g
+    [['prot', 'porcaoProt'], ['carbo', 'porcaoCarbo'], ['gord', 'porcaoGord']].forEach(([velho, novo]) => {
+      const v = a[velho + '100g'];
+      a[novo] = (v != null) ? (un ? v / 2 : v) : null;
+      delete a[velho + '100g'];
+    });
+    delete a.kcal100g;
+    mudou = true;
+  });
+  if (mudou) salvarEstoque();
+}
+migrarAlimentos();
+
 function podeConsumirHoje(item) {
   if (!item.limiteSemanal) return true; 
   const hoje = pegarDataDeHoje();
@@ -56,11 +96,11 @@ function carregarEstoque() {
       const label = document.createElement('label');
       label.className = 'item-checkbox';
       const limit = item.limiteSemanal ? `<small style="color: #fca5a5;"> (Máx ${item.limiteSemanal}x/sem)</small>` : '';
-      label.innerHTML = `<input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="alternarEstoque('${item.id}')"> <span>${item.nome} ${limit}</span>`;
+      label.innerHTML = `<input type="checkbox" id="${item.id}" ${item.emEstoque ? 'checked' : ''} onchange="alternarEstoque('${item.id}')"> <span>${item.nome} ${limit}<small style="display:block;color:#94a3b8;">${rotuloPorcao(item)}</small></span>`;
       container.appendChild(label);
     }
     if(selectAvulso) {
-      selectAvulso.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+      selectAvulso.innerHTML += `<option value="${item.id}">${item.nome} (${undDe(item)})</option>`;
     }
   });
 }
@@ -75,16 +115,23 @@ if(formAlimento) {
   formAlimento.addEventListener('submit', function(e) {
     e.preventDefault();
     const limiteInput = document.getElementById('limite-alimento').value;
-    const kcal100 = document.getElementById('kcal-100g').value;
-    
+    const kcal = parseFloat(document.getElementById('kcal-porcao').value);
+    const qtd = parseFloat(document.getElementById('qtd-porcao').value);
+    if (isNaN(kcal) || kcal < 0 || isNaN(qtd) || qtd <= 0) {
+      return alert('Informe as calorias e a quantidade necessária para atingi-las (maior que zero).');
+    }
+    const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; };
+
     alimentos.push({
       id: 'custom_' + Date.now(),
       nome: document.getElementById('nome-alimento').value,
       cat: document.getElementById('cat-alimento').value,
-      kcal100g: kcal100 ? parseFloat(kcal100) : 0,
-      prot100g: parseFloat(document.getElementById('prot-100g').value) || null,
-      carbo100g: parseFloat(document.getElementById('carbo-100g').value) || null,
-      gord100g: parseFloat(document.getElementById('gord-100g').value) || null,
+      unidade: document.getElementById('und-alimento').value || 'g',
+      porcaoKcal: kcal,
+      porcaoQtd: qtd,
+      porcaoProt: num('prot-porcao'),
+      porcaoCarbo: num('carbo-porcao'),
+      porcaoGord: num('gord-porcao'),
       limiteSemanal: limiteInput ? parseInt(limiteInput) : null,
       emEstoque: true,
       historico: []
@@ -189,52 +236,61 @@ function gerarMenuDinamico() {
       };
     };
 
+    // As calorias de cada item vêm do próprio alimento (kcal ÷ quantidade cadastrada).
+    // "q" é a quantidade usual no cardápio; se a unidade do alimento foi alterada, usa a quantidade cadastrada.
+    const novoItem = (a, q, nome) => {
+      const qtd = (q != null && undDe(a) === (UND_PADRAO[a.id] || 'g')) ? q : a.porcaoQtd;
+      return criarItem(a.id, nome || a.nome, qtd, undTexto(a), kcalDe(a, qtd));
+    };
+    // Para alimentos sem quantidade fixa no cardápio: calcula a quantidade que entrega cerca de "kcal" calorias.
+    const itemPorKcal = (a, kcal) => {
+      const kpu = kcalPorUn(a);
+      if (!(kpu > 0)) return novoItem(a);
+      const q = kcal / kpu;
+      const qtd = undDe(a) === 'un' ? Math.max(0.5, Math.round(q * 2) / 2) : Math.max(5, Math.round(q / 5) * 5);
+      return criarItem(a.id, a.nome, qtd, undTexto(a), kcalDe(a, qtd));
+    };
+    const achar = (id) => alimentos.find(a => a.id === id);
+
+    const QTD_CAFE_CARBO = { pao: 2, tapioca: 100, aveia: 60, batata_doce: 200, banana: 150 };
+    const QTD_CAFE_PROT = { ovos: 3, iogurte: 200, frango: 100, leite: 300 };
+
     let itensCafeArray = [];
-    if (carboManha) {
-      let qtd = 100, und = 'g', kcal = 240;
-      if (carboManha.id === 'pao') { qtd = 2; und = ' un.'; kcal = 290; }
-      else if (carboManha.id === 'tapioca') { qtd = 100; kcal = 240; }
-      else if (carboManha.id === 'aveia') { qtd = 60; kcal = 228; }
-      else if (carboManha.id === 'batata_doce') { qtd = 200; kcal = 172; }
-      else if (carboManha.id === 'banana') { qtd = 150; kcal = 133; }
-      else { 
-        qtd = 100; 
-        kcal = carboManha.kcal100g || 240; 
-      }
-      itensCafeArray.push(criarItem(carboManha.id, carboManha.nome, qtd, und, kcal));
-    }
-    if (protManha) {
-      let qtd = 300, und = 'ml', kcal = 180;
-      if (protManha.id === 'ovos') { qtd = 3; und = ' un.'; kcal = 216; }
-      else if (protManha.id === 'iogurte') { qtd = 200; und = 'g'; kcal = 120; }
-      else if (protManha.id === 'frango') { qtd = 100; und = 'g'; kcal = 165; }
-      else if (protManha.id === 'leite') { qtd = 300; und = 'ml'; kcal = 180; }
-      else {
-        qtd = 100; und = 'g'; kcal = protManha.kcal100g || 180;
-      }
-      itensCafeArray.push(criarItem(protManha.id, protManha.nome, qtd, und, kcal));
-    }
+    if (carboManha) itensCafeArray.push(novoItem(carboManha, QTD_CAFE_CARBO[carboManha.id]));
+    if (protManha) itensCafeArray.push(novoItem(protManha, QTD_CAFE_PROT[protManha.id]));
 
     let itensCeiaArray = [];
+    const compCeia = aveiaCeia ? novoItem(aveiaCeia, 40) : (bananaCeia ? novoItem(bananaCeia, 100) : null);
     if (bebidaLactea) {
-      let kcalBebida = 111;
-      if (bebidaLactea.kcal100g) kcalBebida = (bebidaLactea.kcal100g * 200) / 100;
-      itensCeiaArray.push(criarItem('bebida_lactea', bebidaLactea.nome, 200, 'ml', kcalBebida));
-      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89)); 
-      else if (batataCeia) itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 100, 'g', 86));
+      itensCeiaArray.push(novoItem(bebidaLactea, 200));
+      const c = compCeia || (batataCeia ? novoItem(batataCeia, 100) : null);
+      if (c) itensCeiaArray.push(c);
     } else if (leiteCeia) {
-      itensCeiaArray.push(criarItem('leite', 'Leite Integral', 200, 'ml', 120));
-      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
+      itensCeiaArray.push(novoItem(leiteCeia, 200));
+      if (compCeia) itensCeiaArray.push(compCeia);
     } else if (iogurteCeia) {
-      itensCeiaArray.push(criarItem('iogurte', 'Iogurte Natural', 170, 'g', 100));
-      if (aveiaCeia) itensCeiaArray.push(criarItem('aveia', 'Aveia em Flocos', 40, 'g', 152));
-      else if (bananaCeia) itensCeiaArray.push(criarItem('banana', 'Banana', 100, 'g', 89));
+      itensCeiaArray.push(novoItem(iogurteCeia, 170));
+      if (compCeia) itensCeiaArray.push(compCeia);
     } else {
-      itensCeiaArray.push(criarItem('ovos', 'Ovo Inteiro', 2, ' un.', 144));
-      itensCeiaArray.push(criarItem('batata_doce', 'Batata Doce', 150, 'g', 129));
+      const ov = achar('ovos'), bd = achar('batata_doce');
+      if (ov) itensCeiaArray.push(novoItem(ov, 2));
+      if (bd) itensCeiaArray.push(novoItem(bd, 150));
     }
+
+    // Colação: lanche leve entre o café da manhã e o almoço (evita repetir o que já está no café)
+    const usadosCafe = [carboManha && carboManha.id, protManha && protManha.id];
+    const itensColacao = [];
+    for (const [id, q] of [['banana', 150], ['iogurte', 170], ['leite', 200]]) {
+      const a = pegar(id);
+      if (a && itensColacao.length < 2 && !usadosCafe.includes(id)) itensColacao.push(novoItem(a, q));
+    }
+
+    // Almoço e jantar: arroz/macarrão e frango/ovos têm quantidade fixa; os demais entram pela caloria (~390 e ~297 kcal)
+    const refeicaoPrincipal = () => [
+      ['arroz', 'macarrao'].includes(carboPrinc.id) ? novoItem(carboPrinc, carboPrinc.id === 'macarrao' ? 250 : 300) : itemPorKcal(carboPrinc, 390),
+      ...(leguminosa ? [novoItem(leguminosa, 150)] : []),
+      ['frango', 'ovos'].includes(protPrinc.id) ? novoItem(protPrinc, protPrinc.id === 'ovos' ? 4 : 180) : itemPorKcal(protPrinc, 297)
+    ];
 
     const tempCardapio = {
       data: pegarDataDeHoje(),
@@ -243,56 +299,54 @@ function gerarMenuDinamico() {
           nome: "Café da Manhã",
           itens: itensCafeArray
         },
+        ...(itensColacao.length ? [{
+          nome: "Colação",
+          itens: itensColacao
+        }] : []),
         {
           nome: "Almoço",
-          itens: [
-            criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
-            ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
-            criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
-          ]
+          itens: refeicaoPrincipal()
         },
         {
           nome: "Café da Tarde (Vitamina)",
           itens: [
-            ...(liqVit ? [criarItem(liqVit.id, liqVit.nome, 300, 'ml', liqVit.id === 'leite' ? 180 : 100)] : []),
-            ...(fruVit ? [criarItem(fruVit.id, fruVit.nome, fruVit.id === 'banana' ? 100 : 30, 'g', fruVit.id === 'banana' ? 89 : 114)] : []),
-            ...(temAveia ? [criarItem(temAveia.id, "Aveia", 40, 'g', 152)] : []),
-            ...(extVit ? [criarItem(extVit.id, extVit.nome, 40, 'g', 152)] : []),
-            ...(temLeitePo ? [criarItem(temLeitePo.id, temLeitePo.nome, 20, 'g', 100)] : []),
-            ...(temChia ? [criarItem(temChia.id, temChia.nome, 20, 'g', 93)] : []),
-            ...(temCrea ? [criarItem(temCrea.id, temCrea.nome, 3, 'g', 0)] : [])
+            ...(liqVit ? [novoItem(liqVit, 300)] : []),
+            ...(fruVit ? [novoItem(fruVit, fruVit.id === 'banana' ? 100 : 30)] : []),
+            ...(temAveia ? [novoItem(temAveia, 40)] : []),
+            ...(extVit ? [novoItem(extVit, 40)] : []),
+            ...(temLeitePo ? [novoItem(temLeitePo, 20)] : []),
+            ...(temChia ? [novoItem(temChia, 20)] : []),
+            ...(temCrea ? [novoItem(temCrea, 3)] : [])
           ]
         },
         {
           nome: "Jantar",
-          itens: [
-            criarItem(carboPrinc.id, carboPrinc.nome, carboPrinc.id === 'macarrao' ? 250 : 300, 'g', carboPrinc.id === 'macarrao' ? 375 : 390),
-            ...(leguminosa ? [criarItem(leguminosa.id, leguminosa.nome, 150, 'g', 114)] : []),
-            criarItem(protPrinc.id, protPrinc.nome, protPrinc.id === 'ovos' ? 4 : 180, protPrinc.id === 'ovos' ? ' un.' : 'g', protPrinc.id === 'ovos' ? 288 : 297)
-          ]
+          itens: refeicaoPrincipal()
         },
-        {
+        ...(itensCeiaArray.length ? [{
           nome: "Ceia",
           itens: itensCeiaArray
-        }
+        }] : [])
       ]
     };
 
     let totalOvos = 0;
     tempCardapio.refeicoes.forEach(ref => {
-      ref.itens.forEach(item => { if (item.idAlimento === 'ovos') totalOvos += item.baseQtd; });
+      ref.itens.forEach(item => { if (item.idAlimento === 'ovos' && item.und === ' un.') totalOvos += item.baseQtd; });
     });
 
     if (totalOvos > 4) {
       let excessoOvos = totalOvos - 4;
-      let kcalPerdidaOvos = excessoOvos * 72;
+      let kcalPerdidaOvos = 0;
       
       tempCardapio.refeicoes.forEach(ref => {
         ref.itens.forEach(item => {
-          if (item.idAlimento === 'ovos' && excessoOvos > 0) {
+          if (item.idAlimento === 'ovos' && item.und === ' un.' && excessoOvos > 0) {
+            const kcalPorOvo = item.baseQtd > 0 ? item.baseKcal / item.baseQtd : 0;
             let reducao = Math.min(item.baseQtd, excessoOvos);
             item.baseQtd -= reducao;
-            item.baseKcal -= reducao * 72;
+            item.baseKcal -= reducao * kcalPorOvo;
+            kcalPerdidaOvos += reducao * kcalPorOvo;
             item.currentQtd = item.baseQtd;
             item.currentKcal = item.baseKcal;
             excessoOvos -= reducao;
@@ -485,17 +539,8 @@ if (btnAvulso) {
     if (!id || isNaN(qtd) || qtd <= 0) return alert("Preencha o alimento e a quantidade corretamente.");
 
     const alimento = alimentos.find(a => a.id === id);
-    const mapKcal = {
-      pao: 145, tapioca: 2.4, macarrao: 1.5, arroz: 1.3, feijao: 0.76, batata_doce: 0.86,
-      aveia: 3.8, banana: 0.89, farinha_lactea: 3.8, mucilon: 3.8, bebida_lactea: 0.555,
-      frango: 1.65, carne_moida: 2.5, ovos: 72, leite: 0.6, iogurte: 0.58, creatina: 0,
-      leite_po: 5.0, chia: 4.66
-    };
-    
-    let kcalUnidade = alimento.kcal100g ? (alimento.kcal100g / 100) : (mapKcal[id] || 0);
-    const isUnit = (id === 'pao' || id === 'ovos');
-    const kcalReal = kcalUnidade * qtd; 
-    const und = isUnit ? ' un.' : (id === 'leite' || id === 'bebida_lactea' ? 'ml' : 'g');
+    const kcalReal = kcalDe(alimento, qtd);
+    const und = undTexto(alimento);
 
     let refAvulsa = cardapioDoDia.refeicoes.find(r => r.nome === "Refeições Extras (Avulsos)");
     if (!refAvulsa) {
